@@ -108,14 +108,14 @@ def render_prompt_preview_page(schema):
 
     st.header("LLM Prompt Preview")
     st.write("Preview the prompts that would be sent to an LLM for each annotation "
-             "in your schema. These use the standard prompt format from the annotation pipeline.")
+             "in your codebook. These use the standard prompt format compatible with the LLM annotation pipeline.")
 
     use_examples = st.checkbox("Include examples in prompts", value=False)
 
     st.divider()
 
     if not schema:
-        st.warning("No schema loaded. Please create or upload a schema first.")
+        st.warning("No codebook loaded. Please create or upload a codebook first.")
         return
 
     # Generate and display a prompt for each annotation
