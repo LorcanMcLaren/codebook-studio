@@ -1,4 +1,7 @@
 [theme]
-base="dark"
-primaryColor="green"
-backgroundColor="black"
+base = "light"
+primaryColor = "#7a4a5d"
+backgroundColor = "#f9f6f1"
+secondaryBackgroundColor = "#f0ebe3"
+textColor = "#333333"
+font = "sans serif"

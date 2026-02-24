@@ -3,3 +3,4 @@ green_pill_annotation_schema.json
 .DS_Store
 env
 data
+__pycache__

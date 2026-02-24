@@ -1,20 +1,38 @@
 import streamlit as st
 import pandas as pd
-import base64
 import json
+import html as html_module
+
+from utils.export import generate_latex_codebook, generate_markdown_codebook
+from utils.prompt_preview import render_prompt_preview_page, generate_all_prompts_text
 
 def render_header():
     header = """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+        html, body, [class*="css"] {
+            font-family: "Libre Franklin", sans-serif;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: "Lora", serif !important;
+        }
         .header {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            background-color: black;
+            background-color: #f9f6f1;
             padding: 40px 0 0 20px;
             text-align: left;
             z-index: 1000;
+            border-bottom: 1px solid #333333;
+            color: #333333;
+        }
+        .header h2 {
+            font-family: "Lora", serif !important;
+            font-weight: 700;
+            color: #333333;
         }
         .content {
             margin-top: 60px;
@@ -22,7 +40,7 @@ def render_header():
         </style>
 
         <div class="header">
-            <h2>The Green Pill Project 🧪</h2>
+            <h2>CodeBook 📓</h2>
         </div>
     """
     st.markdown(header, unsafe_allow_html=True)
@@ -84,7 +102,8 @@ def annotation_page():
         st.markdown(f"### {current_title}")
 
         current_text = data.iloc[index][text_column]
-        st.markdown(f'<div style="height: 300px; overflow-y: scroll; border: 1px solid #ced4da; border-radius: 4px; padding: 10px;">{current_text}</div>', unsafe_allow_html=True)
+        safe_text = html_module.escape(str(current_text))
+        st.markdown(f'<div style="height: 300px; overflow-y: scroll; border: 1px solid #333333; border-radius: 4px; padding: 10px;">{safe_text}</div>', unsafe_allow_html=True)
 
         if 'annotations' not in st.session_state:
             st.session_state.annotations = {}
@@ -157,6 +176,22 @@ def annotation_page():
 
         schema_str = json.dumps(st.session_state.custom_schema, indent=4)
         st.download_button(label="Download Schema as JSON", data=schema_str, file_name='custom_annotation_schema.json', mime='application/json')
+
+        st.divider()
+        st.markdown("##### Codebook & Prompts")
+
+        latex_codebook = generate_latex_codebook(st.session_state.custom_schema)
+        st.download_button(label="Download Codebook as LaTeX", data=latex_codebook, file_name='codebook.tex', mime='text/x-tex')
+
+        md_codebook = generate_markdown_codebook(st.session_state.custom_schema)
+        st.download_button(label="Download Codebook as Markdown", data=md_codebook, file_name='codebook.md', mime='text/markdown')
+
+        if st.button("Preview LLM Prompts"):
+            update_data(index, data)
+            st.session_state.data = data
+            st.session_state.previous_page = 'annotate'
+            st.session_state.page = 'prompt_preview'
+            st.rerun()
 
         if st.session_state.get('prepare_return', False):
             st.warning("Warning: Annotations that have not been downloaded will not be saved.")
@@ -344,6 +379,17 @@ def schema_creation_page():
     schema_str = json.dumps(st.session_state.custom_schema, indent=4)
     st.download_button(label="Download Schema as JSON", data=schema_str, file_name='custom_annotation_schema.json', mime='application/json')
 
+    latex_codebook = generate_latex_codebook(st.session_state.custom_schema)
+    st.download_button(label="Download Codebook as LaTeX", data=latex_codebook, file_name='codebook.tex', mime='text/x-tex')
+
+    md_codebook = generate_markdown_codebook(st.session_state.custom_schema)
+    st.download_button(label="Download Codebook as Markdown", data=md_codebook, file_name='codebook.md', mime='text/markdown')
+
+    if st.button("Preview LLM Prompts"):
+        st.session_state.previous_page = 'create_schema'
+        st.session_state.page = 'prompt_preview'
+        st.rerun()
+
     if st.button("Use This Schema for Annotation"):
         st.session_state.data = process_data(st.session_state.uploaded_file, text_column)
         st.session_state.page = 'annotate'
@@ -358,11 +404,22 @@ def update_index(new_index):
     st.session_state.index = new_index
     st.rerun()
 
+def prompt_preview_page():
+    render_header()
+    render_prompt_preview_page(st.session_state.custom_schema)
+
+    previous = st.session_state.get('previous_page', 'annotate')
+    label = "Back to Annotation" if previous == 'annotate' else "Back to Schema"
+    if st.button(label):
+        st.session_state.page = previous
+        st.rerun()
+
+
 if 'page' not in st.session_state:
     st.session_state.page = 'landing'
 
-page_title = "Green Pill"
-page_icon = "🧪"
+page_title = "CodeBook"
+page_icon = "📓"
 
 if st.session_state.page == 'landing':
     st.set_page_config(page_title=page_title, page_icon=page_icon, layout="centered")
@@ -371,33 +428,35 @@ elif st.session_state.page == 'annotate':
     st.set_page_config(page_title=page_title, page_icon=page_icon, layout="wide")
     annotation_page()
 elif st.session_state.page == 'create_schema':
-    st.set_page_config(page_title=page_title, page_icon=page_icon,layout="centered")
+    st.set_page_config(page_title=page_title, page_icon=page_icon, layout="centered")
     schema_creation_page()
+elif st.session_state.page == 'prompt_preview':
+    st.set_page_config(page_title=page_title, page_icon=page_icon, layout="wide")
+    prompt_preview_page()
 
 
 # Add a footer
 footer = """<style>
-a:link , a:visited{
-color: grey;
-background-color: transparent;
-text-decoration: underline;
+.footer a:link, .footer a:visited {
+    color: #555555;
+    background-color: transparent;
+    text-decoration: underline;
 }
 
-a:hover,  a:active {
-color: grey;
-background-color: transparent;
-text-decoration: underline;
+.footer a:hover, .footer a:active {
+    color: #7a4a5d;
+    background-color: transparent;
+    text-decoration: underline;
 }
 
 .footer {
-position: fixed;
-left: 0;
-bottom: 0;
-width: 100%;
-# background-color: white;
-color: grey;
-text-align: right;
-padding-right: 100px;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    color: #555555;
+    text-align: right;
+    padding-right: 100px;
 }
 </style>
 <div class="footer">
