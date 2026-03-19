@@ -4,3 +4,4 @@ green_pill_annotation_schema.json
 env
 data
 __pycache__
+*.code-workspace
