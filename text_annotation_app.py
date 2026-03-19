@@ -40,6 +40,11 @@ def render_header():
             border: 1px solid #e0dbd4;
             border-radius: 4px;
         }
+
+        /* Remove excess top padding from Streamlit's main content area */
+        [data-testid="stAppViewBlockContainer"] {
+            padding-top: 1rem !important;
+        }
         </style>
     """
     st.markdown(global_css, unsafe_allow_html=True)
@@ -48,7 +53,7 @@ def render_header():
     st.markdown(
         '<h1 style="font-family: Lora, serif; font-weight: 700; '
         'color: #333333; margin-bottom: 0; padding-bottom: 0.3em; '
-        'border-bottom: 1px solid #ccc;">CodeBook 📓</h1>',
+        'border-bottom: 1px solid #ccc;">CodeBook Studio</h1>',
         unsafe_allow_html=True,
     )
 
@@ -461,7 +466,7 @@ def prompt_preview_page():
 if 'page' not in st.session_state:
     st.session_state.page = 'landing'
 
-page_title = "CodeBook"
+page_title = "CodeBook Studio"
 page_icon = "📓"
 
 if st.session_state.page == 'landing':

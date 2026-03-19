@@ -1,1 +1,1 @@
-# CodeBook 📓
+# CodeBook Studio
