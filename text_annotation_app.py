@@ -236,6 +236,10 @@ def landing_page():
         "[CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab) "
         "to run and evaluate LLM annotation experiments."
     )
+    st.caption(
+        "If you use CodeBook Studio in research, please cite the software repository: "
+        "[github.com/LorcanMcLaren/codebook-studio](https://github.com/LorcanMcLaren/codebook-studio)."
+    )
 
     st.write("")
     st.markdown("#### Get Started")

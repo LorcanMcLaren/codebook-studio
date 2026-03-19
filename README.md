@@ -27,6 +27,29 @@ In practice, the workflow is:
 3. Export the JSON codebook.
 4. Use that same codebook in CodeBook Lab to run and evaluate LLM annotation experiments.
 
+<table>
+  <tr>
+    <td align="center"><strong>CodeBook Studio</strong></td>
+    <td align="center"></td>
+    <td align="center"><strong>CodeBook Lab</strong></td>
+  </tr>
+  <tr>
+    <td valign="top">
+      Define the annotation task<br>
+      Annotate texts with humans<br>
+      Export <code>codebook.json</code>
+    </td>
+    <td align="center" valign="middle">→</td>
+    <td valign="top">
+      Run LLM annotation experiments<br>
+      Compare models, prompts, and settings<br>
+      Evaluate outputs against human labels
+    </td>
+  </tr>
+</table>
+
+<p><em>CodeBook Studio defines the task; CodeBook Lab runs and evaluates the experiment.</em></p>
+
 This shared codebook structure makes it easier to compare human and model annotations against the same annotation scheme.
 
 Useful links:
