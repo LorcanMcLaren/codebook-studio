@@ -24,11 +24,8 @@ In practice, the workflow is:
 
 1. Create a codebook in CodeBook Studio.
 2. Use it to annotate texts or refine the task definition.
-3. Export the JSON codebook.
-4. Save the human-annotated CSV as `ground-truth.csv`.
-5. Use that same codebook and `ground-truth.csv` in CodeBook Lab.
-6. Let CodeBook Lab strip the annotation label columns automatically before sending the text to the LLM.
-7. Evaluate the model outputs against the original human labels.
+3. Export the JSON codebook and save the human-annotated CSV as `ground-truth.csv`.
+4. Bring both files into CodeBook Lab to run and evaluate LLM annotation experiments.
 
 <table>
   <tr>
@@ -65,15 +62,11 @@ Useful links:
 
 ## Hosted App
 
-For most users, the hosted app at [codebook.streamlit.app](https://codebook.streamlit.app/) is the simplest and recommended way to use CodeBook Studio.
-
-It lets you create codebooks, annotate texts, preview prompts, and export the files needed for downstream LLM evaluation without any local setup.
-
-If you want to run LLM annotation experiments from an exported codebook, use [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab).
+For most users, the hosted app at [codebook.streamlit.app](https://codebook.streamlit.app/) is the simplest way to use CodeBook Studio. No local setup is required.
 
 ## Running Locally
 
-Running locally is mainly useful for power users who want greater customization, or for cases where data sensitivity means you prefer to keep everything on your own machine.
+Running locally is useful for greater customization or when data sensitivity means you prefer to keep everything on your own machine.
 
 ### 1. Create an environment
 
@@ -131,20 +124,17 @@ The prompt preview page shows how each annotation question would be formatted fo
 ## Notes
 
 - The app works with CSV input files.
-- The downloaded JSON codebook may need to be saved as `codebook.json` when used inside a CodeBook Lab task folder.
-- A human-annotated CSV exported from Studio can be used as `ground-truth.csv` in CodeBook Lab.
-- CodeBook Lab can derive the unlabeled LLM input directly from `ground-truth.csv` by removing the annotation columns defined in the codebook.
 - The sample files in `data/` are included as small example materials for testing and demonstration.
 
-## Related Repository
+## License
 
-- [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab): LLM annotation pipeline for running experiments from exported codebooks
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
 ## Citation
 
 If you use this repository in research, please cite the software repository.
 
-The repository includes a [`CITATION.cff`](/Users/lorcanmclaren/Python/codebook-studio/CITATION.cff) file for the software citation used by GitHub's citation interface.
+The repository includes a [`CITATION.cff`](CITATION.cff) file for the software citation used by GitHub's citation interface.
 
 ### Software Citation
 
