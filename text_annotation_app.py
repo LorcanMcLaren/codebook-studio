@@ -177,7 +177,7 @@ def annotation_page():
             csv_data = st.session_state.data.copy()  # Create a copy to update only when needed
             update_data(index, csv_data)  # Update the data copy
             csv = csv_data.to_csv(index=False).encode('utf-8')
-            st.download_button(label="Download Annotated CSV", data=csv, file_name='annotated_data.csv', mime='text/csv')
+            st.download_button(label="Download Annotated CSV", data=csv, file_name='ground-truth.csv', mime='text/csv')
 
         st.divider()
         st.markdown("##### Options")
@@ -192,7 +192,7 @@ def annotation_page():
             st.rerun()
 
         schema_str = json.dumps(st.session_state.custom_schema, indent=4)
-        st.download_button(label="Download Codebook as JSON", data=schema_str, file_name='custom_annotation_schema.json', mime='application/json')
+        st.download_button(label="Download Codebook as JSON", data=schema_str, file_name='codebook.json', mime='application/json')
 
         st.divider()
         st.markdown("##### Codebook & Prompts")
@@ -439,7 +439,7 @@ def schema_creation_page():
     st.json(st.session_state.custom_schema)
 
     schema_str = json.dumps(st.session_state.custom_schema, indent=4)
-    st.download_button(label="Download Codebook as JSON", data=schema_str, file_name='custom_annotation_schema.json', mime='application/json')
+    st.download_button(label="Download Codebook as JSON", data=schema_str, file_name='codebook.json', mime='application/json')
 
     latex_codebook = generate_latex_codebook(st.session_state.custom_schema)
     st.download_button(label="Download Codebook as LaTeX", data=latex_codebook, file_name='codebook.tex', mime='text/x-tex')

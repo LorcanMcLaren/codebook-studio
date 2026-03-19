@@ -14,7 +14,7 @@ CodeBook Studio lets you:
 - add section-level instructions, tooltips, and worked examples
 - preview the prompts that would be sent to an LLM
 - export the codebook as JSON, Markdown, or LaTeX
-- download annotated CSV files for further analysis
+- download annotated CSV files for further analysis or evaluation in CodeBook Lab
 
 ## How It Fits With CodeBook Lab
 
@@ -25,7 +25,10 @@ In practice, the workflow is:
 1. Create a codebook in CodeBook Studio.
 2. Use it to annotate texts or refine the task definition.
 3. Export the JSON codebook.
-4. Use that same codebook in CodeBook Lab to run and evaluate LLM annotation experiments.
+4. Save the human-annotated CSV as `ground-truth.csv`.
+5. Use that same codebook and `ground-truth.csv` in CodeBook Lab.
+6. Let CodeBook Lab strip the annotation label columns automatically before sending the text to the LLM.
+7. Evaluate the model outputs against the original human labels.
 
 <table>
   <tr>
@@ -37,10 +40,13 @@ In practice, the workflow is:
     <td valign="top">
       Define the annotation task<br>
       Annotate texts with humans<br>
-      Export <code>codebook.json</code>
+      Export <code>codebook.json</code><br>
+      Save labeled data as <code>ground-truth.csv</code>
     </td>
     <td align="center" valign="middle">→</td>
     <td valign="top">
+      Read rows from <code>ground-truth.csv</code><br>
+      Strip label columns automatically<br>
       Run LLM annotation experiments<br>
       Compare models, prompts, and settings<br>
       Evaluate outputs against human labels
@@ -61,7 +67,7 @@ Useful links:
 
 For most users, the hosted app at [codebook.streamlit.app](https://codebook.streamlit.app/) is the simplest and recommended way to use CodeBook Studio.
 
-It lets you create codebooks, annotate texts, preview prompts, and export JSON codebooks without any local setup.
+It lets you create codebooks, annotate texts, preview prompts, and export the files needed for downstream LLM evaluation without any local setup.
 
 If you want to run LLM annotation experiments from an exported codebook, use [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab).
 
@@ -126,6 +132,8 @@ The prompt preview page shows how each annotation question would be formatted fo
 
 - The app works with CSV input files.
 - The downloaded JSON codebook may need to be saved as `codebook.json` when used inside a CodeBook Lab task folder.
+- A human-annotated CSV exported from Studio can be used as `ground-truth.csv` in CodeBook Lab.
+- CodeBook Lab can derive the unlabeled LLM input directly from `ground-truth.csv` by removing the annotation columns defined in the codebook.
 - The sample files in `data/` are included as small example materials for testing and demonstration.
 
 ## Related Repository
