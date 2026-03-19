@@ -2,7 +2,7 @@
 
 CodeBook Studio is a codebook-driven text annotation app for computational social science. It helps researchers define annotation tasks once and then use the same codebook for human annotation, prompt preview, export, and downstream LLM experiments in [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab).
 
-The app is designed for researchers working on text classification and related annotation tasks with varied technical backgrounds. Instead of rebuilding annotation instructions and output formats for each project, you can create a structured codebook, apply it to CSV data, and export it in formats that are useful both for annotation workflows and for research reporting.
+The app is designed for researchers working on text classification and related annotation tasks with varied technical backgrounds. Instead of rebuilding annotation instructions and output formats for each study, you can create a structured codebook, apply it to CSV data, and export it in formats that support both annotation and research reporting.
 
 ## What It Does
 
@@ -23,18 +23,28 @@ CodeBook Studio is the task-definition interface. CodeBook Lab is the experiment
 In practice, the workflow is:
 
 1. Create a codebook in CodeBook Studio.
-2. Use it for human annotation or codebook design.
+2. Use it to annotate texts or refine the task definition.
 3. Export the JSON codebook.
 4. Use that same codebook in CodeBook Lab to run and evaluate LLM annotation experiments.
 
-This shared codebook structure makes it easier to compare human and model annotations against the same task definition.
+This shared codebook structure makes it easier to compare human and model annotations against the same annotation scheme.
 
 Useful links:
 
 - Hosted app: [codebook.streamlit.app](https://codebook.streamlit.app/)
 - CodeBook Lab repository: [github.com/LorcanMcLaren/codebook-lab](https://github.com/LorcanMcLaren/codebook-lab)
 
+## Hosted App
+
+For most users, the hosted app at [codebook.streamlit.app](https://codebook.streamlit.app/) is the simplest and recommended way to use CodeBook Studio.
+
+It lets you create codebooks, annotate texts, preview prompts, and export JSON codebooks without any local setup.
+
+If you want to run LLM annotation experiments from an exported codebook, use [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab).
+
 ## Running Locally
+
+Running locally is mainly useful for power users who want greater customization, or for cases where data sensitivity means you prefer to keep everything on your own machine.
 
 ### 1. Create an environment
 
@@ -52,10 +62,6 @@ streamlit run text_annotation_app.py
 ```
 
 By default, the app will open in your browser at a local Streamlit URL.
-
-## Hosted App
-
-The hosted version is available at [codebook.streamlit.app](https://codebook.streamlit.app/).
 
 ## Core Concepts
 
@@ -97,7 +103,7 @@ The prompt preview page shows how each annotation question would be formatted fo
 
 - The app works with CSV input files.
 - The downloaded JSON codebook may need to be saved as `codebook.json` when used inside a CodeBook Lab task folder.
-- The sample files in `data/` are for development and testing.
+- The sample files in `data/` are included as small example materials for testing and demonstration.
 
 ## Related Repository
 

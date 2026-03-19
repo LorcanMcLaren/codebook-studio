@@ -231,6 +231,11 @@ def landing_page():
         'LLM pipelines, and paper appendices.</p>',
         unsafe_allow_html=True,
     )
+    st.info(
+        "Exported JSON codebooks can be used directly in "
+        "[CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab) "
+        "to run and evaluate LLM annotation experiments."
+    )
 
     st.write("")
     st.markdown("#### Get Started")
@@ -284,6 +289,11 @@ def schema_creation_page():
         "for each text, and what response formats are available. The same codebook file can "
         "be used for human annotation in this app, passed directly to an LLM annotation "
         "pipeline, or exported as a LaTeX/Markdown appendix for your paper."
+    )
+    st.caption(
+        "Tip: download the JSON codebook here and use it in "
+        "[CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab) "
+        "if you want to run LLM annotation experiments from the same task definition."
     )
     st.markdown(
         "**How it works:**\n"
