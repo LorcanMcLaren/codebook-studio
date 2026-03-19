@@ -102,3 +102,27 @@ The prompt preview page shows how each annotation question would be formatted fo
 ## Related Repository
 
 - [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab): LLM annotation pipeline for running experiments from exported codebooks
+
+## Citation
+
+If you use this repository in research, please cite the software repository.
+
+The repository includes a [`CITATION.cff`](/Users/lorcanmclaren/Python/codebook-studio/CITATION.cff) file for the software citation used by GitHub's citation interface.
+
+### Software Citation
+
+APSR style:
+
+McLaren, Lorcan. 2026. *CodeBook Studio* (Version 0.1.0) [Computer software]. [https://github.com/LorcanMcLaren/codebook-studio](https://github.com/LorcanMcLaren/codebook-studio).
+
+BibTeX:
+
+```bibtex
+@software{mclaren_codebook_studio_2026,
+  author = {McLaren, Lorcan},
+  title = {CodeBook Studio},
+  year = {2026},
+  version = {0.1.0},
+  url = {https://github.com/LorcanMcLaren/codebook-studio}
+}
+```
