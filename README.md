@@ -124,7 +124,7 @@ The prompt preview page shows how each annotation question would be formatted fo
 ## Notes
 
 - The app works with CSV input files.
-- The sample files in `data/` are included as small example materials for testing and demonstration.
+- The sample files in `data/` can be used to try out the app before loading your own data.
 
 ## License
 
