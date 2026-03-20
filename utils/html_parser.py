@@ -14,6 +14,30 @@ import re
 import json
 
 
+def parse_example_blocks(example_text, annotation_type=None):
+    """
+    Parse an example string from a schema annotation into ordered example blocks.
+
+    Returns:
+        list[dict]: [{"text": str, "response": Any, "label": str}]
+    """
+    if not example_text or not example_text.strip():
+        return []
+
+    if "Text:" in example_text and "Response:" in example_text:
+        return _parse_blocks_format_b(example_text, annotation_type)
+    if "<br>" in example_text.lower():
+        return _parse_blocks_format_a(example_text, annotation_type)
+
+    return [
+        {
+            "text": example_text.strip(),
+            "response": "",
+            "label": "Example",
+        }
+    ]
+
+
 def parse_examples(example_text, annotation_type=None):
     """
     Parse an example string from a schema annotation into structured data.
@@ -29,17 +53,34 @@ def parse_examples(example_text, annotation_type=None):
               or {"Pro": ["It's outrageous..."], "Anti": ["The anger towards..."]}
               Returns empty dict if no examples or unparseable.
     """
-    if not example_text or not example_text.strip():
-        return {}
+    results = {}
+    for block in parse_example_blocks(example_text, annotation_type):
+        label = block.get("label") or "Example"
+        results.setdefault(label, []).append(block.get("text", ""))
+    return results
 
-    # Detect format based on presence of "Text:" and "Response:" patterns
-    if "Text:" in example_text and "Response:" in example_text:
-        return _parse_format_b(example_text)
-    elif "<br>" in example_text.lower():
-        return _parse_format_a(example_text)
-    else:
-        # Fallback: treat as a single unlabelled example
-        return {"Example": [example_text.strip()]}
+
+def serialize_example_blocks(example_blocks, annotation_type=None):
+    """
+    Serialize ordered example blocks into the prompt-ready schema format.
+
+    Returns:
+        str: Text/Response blocks joined by the standard --- separator.
+    """
+    serialized_blocks = []
+
+    for block in example_blocks:
+        text = str(block.get("text", "")).strip()
+        response_value = _normalize_response_value(block.get("response", ""), annotation_type)
+
+        if not text and response_value in ("", None):
+            continue
+
+        text_json = json.dumps(text, ensure_ascii=False)
+        response_json = json.dumps({"response": response_value}, ensure_ascii=False)
+        serialized_blocks.append(f"Text: \n{text_json}\n\nResponse: \n{response_json}")
+
+    return "\n\n---\n\n".join(serialized_blocks)
 
 
 def _parse_format_a(example_text):
@@ -118,6 +159,122 @@ def _parse_format_b(example_text):
             results[label].append(text)
 
     return results
+
+
+def _parse_blocks_format_a(example_text, annotation_type=None):
+    blocks = []
+    parts = re.split(r'<br\s*/?>', example_text, flags=re.IGNORECASE)
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        match = re.match(r"^(.+?):\s*['\"]?(.+?)['\"]?\s*$", part, re.DOTALL)
+        if match:
+            response_value = match.group(1).strip()
+            text = match.group(2).strip().rstrip("'\"")
+        else:
+            response_value = ""
+            text = part
+
+        blocks.append(
+            {
+                "text": text,
+                "response": response_value,
+                "label": _humanize_response_label(response_value, annotation_type),
+            }
+        )
+
+    return blocks
+
+
+def _parse_blocks_format_b(example_text, annotation_type=None):
+    blocks = []
+    raw_blocks = re.split(r'\n---\n', example_text)
+
+    for raw_block in raw_blocks:
+        raw_block = raw_block.strip()
+        if not raw_block:
+            continue
+
+        text_match = re.search(r'Text:\s*\n(.+?)(?:\n\nResponse:|\Z)', raw_block, re.DOTALL)
+        response_match = re.search(r'Response:\s*\n(.+?)(?:\n\n|\Z)', raw_block, re.DOTALL)
+
+        if not text_match:
+            continue
+
+        text = _decode_possible_json_string(text_match.group(1).strip())
+        response_value = ""
+        if response_match:
+            response_value = _decode_response_value(response_match.group(1).strip())
+
+        blocks.append(
+            {
+                "text": text,
+                "response": response_value,
+                "label": _humanize_response_label(response_value, annotation_type),
+            }
+        )
+
+    return blocks
+
+
+def _decode_possible_json_string(raw_value):
+    try:
+        parsed = json.loads(raw_value)
+        if isinstance(parsed, str):
+            return parsed
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    return raw_value.strip().strip('"')
+
+
+def _decode_response_value(raw_value):
+    try:
+        parsed = json.loads(raw_value)
+        if isinstance(parsed, dict):
+            return parsed.get("response", "")
+        return parsed
+    except (json.JSONDecodeError, TypeError):
+        return raw_value.strip().strip('"')
+
+
+def _normalize_response_value(response_value, annotation_type=None):
+    if annotation_type == "checkbox":
+        lowered = str(response_value).strip().lower()
+        if lowered in {"1", "true", "yes"}:
+            return 1
+        if lowered in {"0", "false", "no"}:
+            return 0
+        return 1 if bool(response_value) else 0
+
+    if annotation_type == "likert":
+        try:
+            return int(response_value)
+        except (ValueError, TypeError):
+            return response_value
+
+    if response_value is None:
+        return ""
+
+    return str(response_value)
+
+
+def _humanize_response_label(response_value, annotation_type=None):
+    if annotation_type == "checkbox":
+        lowered = str(response_value).strip().lower()
+        if lowered in {"1", "true", "yes"}:
+            return "Yes"
+        if lowered in {"0", "false", "no"}:
+            return "No"
+
+    if response_value is None or str(response_value).strip() == "":
+        return "Example"
+
+    text = str(response_value).strip()
+    return text[0].upper() + text[1:] if text else "Example"
 
 
 def truncate_text(text, max_sentences=2):

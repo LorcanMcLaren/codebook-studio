@@ -7,6 +7,7 @@ import zipfile
 from datetime import datetime, timezone
 
 from utils.export import generate_latex_codebook, generate_markdown_codebook
+from utils.html_parser import parse_example_blocks, serialize_example_blocks
 from utils.prompt_preview import render_prompt_preview_page
 from utils.persistence import (
     load_state_if_available,
@@ -17,8 +18,9 @@ from utils.persistence import (
 
 DOCUMENT_PANE_HEIGHT = 620
 ANNOTATION_PANE_HEIGHT = 572
-EDITOR_PREVIEW_TEXT_HEIGHT = 360
 EDITOR_PREVIEW_SECTION_HEIGHT = 360
+EDITOR_PREVIEW_SELECTOR_OFFSET = 46
+EDITOR_PREVIEW_TEXT_HEIGHT = EDITOR_PREVIEW_SECTION_HEIGHT + EDITOR_PREVIEW_SELECTOR_OFFSET
 
 def render_header(home_action=None):
     # Global CSS — injected once per page render
@@ -259,16 +261,227 @@ def render_header(home_action=None):
             line-height: 1.55;
         }
 
+        .cb-example-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .cb-example-card {
+            border: 1px solid rgba(221, 213, 205, 0.9);
+            border-radius: 12px;
+            background: rgba(249, 246, 241, 0.72);
+            padding: 0.7rem 0.85rem;
+        }
+
+        .cb-example-response {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.18rem 0.6rem;
+            border-radius: 999px;
+            background: var(--cb-accent-soft);
+            color: var(--cb-accent);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+
+        .cb-example-text {
+            color: var(--cb-ink);
+            line-height: 1.38;
+            font-size: 0.87rem;
+        }
+
+        .cb-disclosure-copy {
+            color: var(--cb-ink);
+            line-height: 1.42;
+            font-size: 0.88rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .cb-example-list {
+            padding-bottom: 0.5rem;
+        }
+
+        .stSelectbox [data-testid="stWidgetLabel"] p,
+        .stTextArea [data-testid="stWidgetLabel"] p,
+        .stSegmentedControl [data-testid="stWidgetLabel"] p,
+        .stButtonGroup [data-testid="stWidgetLabel"] p {
+            color: #8a837b !important;
+            font-size: 0.78rem !important;
+            font-weight: 400 !important;
+        }
+
+        .stButtonGroup [data-testid="stWidgetLabel"],
+        .stSegmentedControl [data-testid="stWidgetLabel"] {
+            width: 100% !important;
+            justify-content: space-between !important;
+        }
+
+        .stTextArea [data-baseweb="textarea"] {
+            border: 1px solid var(--cb-border) !important;
+            border-radius: 14px !important;
+            background: rgba(249, 246, 241, 0.82) !important;
+        }
+
+        .stElementContainer:has(.stTextArea) {
+            flex-shrink: 0 !important;
+        }
+
+        .stTextArea {
+            margin-bottom: 0.55rem !important;
+        }
+
+        .stTextArea textarea {
+            min-height: 7rem !important;
+            color: var(--cb-ink) !important;
+            -webkit-text-fill-color: var(--cb-ink) !important;
+            background: transparent !important;
+        }
+
+        .stTextArea textarea::placeholder {
+            color: #9a938b !important;
+            opacity: 1 !important;
+        }
+
+        .cb-textbox-preview {
+            min-height: 6.8rem;
+            border: 1px solid var(--cb-border);
+            border-radius: 14px;
+            background: rgba(249, 246, 241, 0.82);
+            padding: 0.95rem 1rem;
+            color: #9a938b;
+            line-height: 1.45;
+            font-size: 0.92rem;
+        }
+
+        .cb-field-spacer {
+            height: 0.35rem;
+        }
+
+        [class*="st-key-disclosure_toggle__"] button {
+            all: unset;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            color: var(--cb-ink);
+            cursor: pointer;
+            padding: 0.05rem 0;
+        }
+
+        [class*="st-key-disclosure_toggle__"] button p {
+            margin: 0;
+            font-family: "Lora", serif !important;
+            font-size: 0.9rem;
+            font-weight: 600;
+            line-height: 1.3;
+            color: inherit;
+        }
+
+        [class*="st-key-disclosure_toggle__"] button:hover {
+            color: var(--cb-accent);
+        }
+
+        [class*="st-key-disclosure_toggle__"] button:focus,
+        [class*="st-key-disclosure_toggle__"] button:focus-visible {
+            outline: none;
+            box-shadow: none;
+        }
+
         .cb-toolbar-inline {
             color: var(--cb-ink);
-            font-size: 1.28rem;
+            font-size: 1rem;
             line-height: 1.35;
             margin: 0.1rem 0 0 0;
         }
 
         .cb-toolbar-inline-meta {
             color: var(--cb-muted);
-            font-size: 0.96rem;
+            font-size: 0.82rem;
+        }
+
+        p.cb-toolbar-progress,
+        [data-testid="stMarkdownContainer"] p.cb-toolbar-progress {
+            color: #8a837b;
+            font-size: 0.62rem !important;
+            font-weight: 400 !important;
+            line-height: 1.2 !important;
+            margin: 0.12rem 0 0.24rem 0;
+        }
+
+        p.cb-secondary-copy,
+        [data-testid="stMarkdownContainer"] p.cb-secondary-copy {
+            color: #8a837b;
+            font-size: 0.72rem !important;
+            font-weight: 400 !important;
+            line-height: 1.2 !important;
+            margin: 0.14rem 0 0.38rem 0;
+        }
+
+        p.cb-utility-subheading,
+        [data-testid="stMarkdownContainer"] p.cb-utility-subheading {
+            font-family: "Lora", serif !important;
+            color: var(--cb-ink);
+            font-size: 0.88rem !important;
+            font-weight: 600 !important;
+            line-height: 1.25 !important;
+            margin: 0 0 0.35rem 0;
+        }
+
+        .st-key-annotation_prev button p,
+        .st-key-annotation_next button p,
+        .st-key-utility_edit_codebook button p,
+        .st-key-utility_prompt_preview button p,
+        .st-key-utility_download_data button p,
+        .st-key-utility_download_codebook button p {
+            font-size: 0.92rem !important;
+        }
+
+        .st-key-annotation_prev button,
+        .st-key-annotation_next button,
+        .st-key-preview_previous button,
+        .st-key-preview_next button {
+            min-height: 2.4rem !important;
+            padding-top: 0.35rem !important;
+            padding-bottom: 0.35rem !important;
+        }
+
+        .st-key-preview_previous button p,
+        .st-key-preview_next button p {
+            font-size: 0.92rem !important;
+        }
+
+        .st-key-annotation_progress,
+        .st-key-preview_progress {
+            max-width: 78%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .st-key-annotation_progress {
+            margin-top: -0.15rem;
+            margin-bottom: -0.2rem;
+        }
+
+        .st-key-preview_progress {
+            margin-top: -0.15rem;
+            margin-bottom: -0.1rem;
+        }
+
+        .st-key-annotation_progress [data-baseweb="slider"] *,
+        .st-key-preview_progress [data-baseweb="slider"] * {
+            font-size: 0.82rem !important;
+        }
+
+        p.cb-section-title,
+        [data-testid="stMarkdownContainer"] p.cb-section-title {
+            font-family: "Lora", serif !important;
+            color: var(--cb-ink);
+            font-size: 1.1rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin: 0 0 0.2rem 0;
         }
 
         @media (max-width: 960px) {
@@ -404,6 +617,9 @@ def reset_working_session():
         "index",
         "previous_page",
         "active_annotation_section",
+        "annotation_progress",
+        "_next_annotation_progress",
+        "preview_progress",
         "_annotation_cache_key",
         "_pending_auto_save",
         "csv_uploader",
@@ -419,6 +635,12 @@ def render_annotation_toolbar(index, data, sections):
     title_column = st.session_state.custom_schema["header_column"]
     current_title = data.iloc[index][title_column]
     completed_sections = get_completed_sections(sections, st.session_state.annotations)
+    current_item = index + 1
+
+    if "_next_annotation_progress" in st.session_state:
+        st.session_state.annotation_progress = st.session_state.pop("_next_annotation_progress")
+    elif "annotation_progress" not in st.session_state:
+        st.session_state.annotation_progress = current_item
 
     with st.container(border=True):
         title_col, progress_col, nav_col = st.columns([0.42, 0.3, 0.28], gap="medium")
@@ -427,8 +649,11 @@ def render_annotation_toolbar(index, data, sections):
             safe_title = html_module.escape(str(current_title))
             st.markdown(
                 f'<p class="cb-toolbar-inline"><span class="cb-toolbar-inline-meta">Item</span> '
-                f'{safe_title} <span class="cb-toolbar-inline-meta">· '
-                f'{completed_sections}/{len(sections)} sections touched</span></p>',
+                f'{safe_title}</p>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<p class="cb-toolbar-progress">{completed_sections}/{len(sections)} sections touched</p>',
                 unsafe_allow_html=True,
             )
 
@@ -437,23 +662,23 @@ def render_annotation_toolbar(index, data, sections):
                 "Item progress",
                 min_value=1,
                 max_value=len(data),
-                value=index + 1,
                 step=1,
                 help="Drag to move quickly between items.",
+                key="annotation_progress",
                 label_visibility="collapsed",
             )
-            if scrubbed_index != index + 1:
+            if scrubbed_index != current_item:
                 update_data(index, data)
                 update_index(int(scrubbed_index))
 
         with nav_col:
             button_col1, button_col2 = st.columns(2, gap="small")
             with button_col1:
-                if st.button("Prev", use_container_width=True, disabled=index == 0):
+                if st.button("Prev", key="annotation_prev", use_container_width=True, disabled=index == 0):
                     update_data(index, data)
                     update_index(index)
             with button_col2:
-                if st.button("Next", use_container_width=True, disabled=index >= len(data) - 1):
+                if st.button("Next", key="annotation_next", use_container_width=True, disabled=index >= len(data) - 1):
                     update_data(index, data)
                     update_index(index + 2)
 
@@ -552,11 +777,78 @@ def render_editor_preview_annotation(annotation, key):
         options = [""] + annotation.get("options", [])
         st.selectbox(label, options, index=0, help=tooltip, key=key, disabled=True)
     elif annotation["type"] == "textbox":
-        st.text_area(label, help=tooltip, key=key, height=100, disabled=True)
+        st.text_area(label, help=tooltip, key=key, height=120, disabled=True, placeholder="Free-text response")
 
     if annotation.get("example"):
-        with st.expander(f"Examples for {label}", expanded=False):
-            st.write(annotation["example"], unsafe_allow_html=True)
+        if annotation["type"] == "textbox":
+            st.markdown('<div class="cb-field-spacer"></div>', unsafe_allow_html=True)
+        render_persistent_disclosure(
+            "Examples",
+            f"preview_examples__{key}",
+            lambda: render_example_blocks(annotation["example"], annotation.get("type")),
+        )
+
+
+def format_example_response_for_display(response_value, annotation_type):
+    if annotation_type == "checkbox":
+        lowered = str(response_value).strip().lower()
+        if lowered in {"1", "true", "yes"}:
+            return "Yes"
+        if lowered in {"0", "false", "no"}:
+            return "No"
+    return "" if response_value is None else str(response_value)
+
+
+def render_persistent_disclosure(label, state_key, render_content, default_open=False):
+    if state_key not in st.session_state:
+        st.session_state[state_key] = default_open
+
+    is_open = st.session_state[state_key]
+    icon = "▾" if is_open else "▸"
+
+    with st.container(border=True):
+        if st.button(
+            f"{icon}  {label}",
+            key=f"disclosure_toggle__{state_key}",
+            use_container_width=True,
+        ):
+            st.session_state[state_key] = not st.session_state[state_key]
+
+        if st.session_state[state_key]:
+            render_content()
+
+
+def render_disclosure_copy(text):
+    safe_text = html_module.escape(str(text)).replace("\n", "<br>")
+    st.markdown(f'<div class="cb-disclosure-copy">{safe_text}</div>', unsafe_allow_html=True)
+
+
+def render_example_blocks(example_text, annotation_type):
+    example_blocks = parse_example_blocks(example_text, annotation_type)
+    if not example_blocks:
+        return
+
+    rendered_cards = []
+    for idx, block in enumerate(example_blocks):
+        text_value = str(block.get("text", "")).strip()
+        response_value = format_example_response_for_display(
+            block.get("response", ""),
+            annotation_type,
+        ).strip()
+        safe_text = html_module.escape(text_value).replace("\n", "<br>")
+        safe_response = html_module.escape(response_value or "Example")
+
+        rendered_cards.append(
+            '<div class="cb-example-card">'
+            f'<div class="cb-example-response">{safe_response}</div>'
+            f'<div class="cb-example-text">{safe_text}</div>'
+            '</div>'
+        )
+
+    st.markdown(
+        f'<div class="cb-example-list">{"".join(rendered_cards)}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def create_empty_annotation(annotation_type="checkbox"):
@@ -601,6 +893,186 @@ def get_annotation_editor_state_key(section_key):
     return f"editor_selected_annotation_{section_key}"
 
 
+def get_example_editor_count_key(section_key, annotation_key):
+    return f"{section_key}_{annotation_key}_example_count"
+
+
+def get_example_editor_signature_key(section_key, annotation_key):
+    return f"{section_key}_{annotation_key}_example_signature"
+
+
+def get_example_text_widget_key(section_key, annotation_key, idx):
+    return f"{section_key}_{annotation_key}_example_text_{idx}"
+
+
+def get_example_response_widget_key(section_key, annotation_key, idx):
+    return f"{section_key}_{annotation_key}_example_response_{idx}"
+
+
+def build_example_blocks_from_state(section_key, annotation_key):
+    blocks = []
+    count = st.session_state.get(get_example_editor_count_key(section_key, annotation_key), 0)
+
+    for idx in range(count):
+        blocks.append(
+            {
+                "text": st.session_state.get(get_example_text_widget_key(section_key, annotation_key, idx), ""),
+                "response": st.session_state.get(get_example_response_widget_key(section_key, annotation_key, idx), ""),
+            }
+        )
+
+    return blocks
+
+
+def example_editor_state_is_complete(section_key, annotation_key):
+    count = st.session_state.get(get_example_editor_count_key(section_key, annotation_key))
+    if count is None:
+        return False
+
+    for idx in range(count):
+        text_key = get_example_text_widget_key(section_key, annotation_key, idx)
+        response_key = get_example_response_widget_key(section_key, annotation_key, idx)
+        if text_key not in st.session_state or response_key not in st.session_state:
+            return False
+
+    return True
+
+
+def set_example_editor_state(section_key, annotation_key, blocks, raw_signature=None):
+    count_key = get_example_editor_count_key(section_key, annotation_key)
+    previous_count = st.session_state.get(count_key, 0)
+    st.session_state[count_key] = len(blocks)
+
+    for idx, block in enumerate(blocks):
+        st.session_state[get_example_text_widget_key(section_key, annotation_key, idx)] = block.get("text", "")
+        st.session_state[get_example_response_widget_key(section_key, annotation_key, idx)] = block.get("response", "")
+
+    for idx in range(len(blocks), previous_count):
+        st.session_state.pop(get_example_text_widget_key(section_key, annotation_key, idx), None)
+        st.session_state.pop(get_example_response_widget_key(section_key, annotation_key, idx), None)
+
+    if raw_signature is not None:
+        st.session_state[get_example_editor_signature_key(section_key, annotation_key)] = raw_signature
+
+
+def initialize_example_editor_state(section_key, annotation_key, annotation):
+    raw_example = annotation.get("example", "")
+    annotation_type = annotation.get("type")
+    signature = f"{annotation_type}::{raw_example}"
+    signature_key = get_example_editor_signature_key(section_key, annotation_key)
+
+    parsed_blocks = parse_example_blocks(raw_example, annotation_type)
+    blocks = [
+        {
+            "text": block.get("text", ""),
+            "response": format_example_response_for_display(block.get("response", ""), annotation_type),
+        }
+        for block in parsed_blocks
+    ]
+
+    count_key = get_example_editor_count_key(section_key, annotation_key)
+    should_refresh = st.session_state.get(signature_key) != signature
+    should_refresh = should_refresh or st.session_state.get(count_key) != len(blocks)
+
+    if not should_refresh:
+        for idx in range(len(blocks)):
+            text_key = get_example_text_widget_key(section_key, annotation_key, idx)
+            response_key = get_example_response_widget_key(section_key, annotation_key, idx)
+            if text_key not in st.session_state or response_key not in st.session_state:
+                should_refresh = True
+                break
+
+    if not should_refresh:
+        return
+
+    set_example_editor_state(section_key, annotation_key, blocks, raw_signature=signature)
+
+
+def get_valid_example_response_options(annotation):
+    annotation_type = annotation.get("type", "checkbox")
+
+    if annotation_type == "checkbox":
+        return ["Yes", "No"]
+    if annotation_type == "dropdown":
+        return [str(option) for option in annotation.get("options", []) if str(option).strip()]
+    if annotation_type == "likert":
+        min_value = int(annotation.get("min_value", 0))
+        max_value = int(annotation.get("max_value", 5))
+        if min_value > max_value:
+            min_value, max_value = max_value, min_value
+        return [str(value) for value in range(min_value, max_value + 1)]
+
+    return None
+
+
+def sanitize_example_editor_responses(section_key, annotation_key, annotation):
+    valid_options = get_valid_example_response_options(annotation)
+    if valid_options is None:
+        return
+
+    valid_set = set(valid_options)
+    count = st.session_state.get(get_example_editor_count_key(section_key, annotation_key), 0)
+    for idx in range(count):
+        response_key = get_example_response_widget_key(section_key, annotation_key, idx)
+        current_response = st.session_state.get(response_key, "")
+        if current_response and str(current_response) not in valid_set:
+            st.session_state[response_key] = ""
+
+
+def render_example_editor(section_key, annotation_key, annotation):
+    initialize_example_editor_state(section_key, annotation_key, annotation)
+    sanitize_example_editor_responses(section_key, annotation_key, annotation)
+    valid_response_options = get_valid_example_response_options(annotation)
+
+    st.markdown("###### Examples")
+    st.caption(
+        "Add example text after defining the annotation. Expected responses follow the "
+        "current annotation settings and save back into the LLM-ready CodeBook format automatically."
+    )
+
+    example_blocks = build_example_blocks_from_state(section_key, annotation_key)
+    if not example_blocks:
+        st.caption("No examples yet.")
+
+    for idx, _ in enumerate(example_blocks):
+        with st.container(border=True):
+            text_key = get_example_text_widget_key(section_key, annotation_key, idx)
+            response_key = get_example_response_widget_key(section_key, annotation_key, idx)
+
+            st.text_area(
+                f"Example text {idx + 1}",
+                key=text_key,
+                help="A sample text that illustrates this annotation.",
+                height=100,
+            )
+            if valid_response_options is None:
+                st.text_input(
+                    f"Expected response {idx + 1}",
+                    key=response_key,
+                    help="Enter the response value you would expect for this example.",
+                )
+            else:
+                st.selectbox(
+                    f"Expected response {idx + 1}",
+                    options=[""] + valid_response_options,
+                    key=response_key,
+                    format_func=lambda value: "Select response" if value == "" else value,
+                    help="Choose one of the responses currently allowed for this annotation.",
+                )
+
+            if st.button("Delete Example", key=f"delete_example_{section_key}_{annotation_key}_{idx}"):
+                updated_blocks = build_example_blocks_from_state(section_key, annotation_key)
+                del updated_blocks[idx]
+                set_example_editor_state(section_key, annotation_key, updated_blocks)
+                st.rerun()
+
+    if st.button("Add Example", key=f"add_example_{section_key}_{annotation_key}"):
+        updated_blocks = build_example_blocks_from_state(section_key, annotation_key)
+        updated_blocks.append({"text": "", "response": ""})
+        set_example_editor_state(section_key, annotation_key, updated_blocks)
+        st.rerun()
+
+
 def sync_schema_editor_state_from_widgets(schema):
     for section_key, section in get_schema_sections(schema):
         section_name_key = f"{section_key}_name"
@@ -615,7 +1087,6 @@ def sync_schema_editor_state_from_widgets(schema):
             annotation_name_key = f"{section_key}_{annotation_key}_name"
             annotation_type_key = f"{section_key}_{annotation_key}_type"
             annotation_tooltip_key = f"{section_key}_{annotation_key}_tooltip"
-            annotation_example_key = f"{section_key}_{annotation_key}_example"
             annotation_min_key = f"{section_key}_{annotation_key}_min_value"
             annotation_max_key = f"{section_key}_{annotation_key}_max_value"
             annotation_options_key = f"{section_key}_{annotation_key}_options"
@@ -626,8 +1097,6 @@ def sync_schema_editor_state_from_widgets(schema):
                 annotation["type"] = st.session_state[annotation_type_key]
             if annotation_tooltip_key in st.session_state:
                 annotation["tooltip"] = st.session_state[annotation_tooltip_key]
-            if annotation_example_key in st.session_state:
-                annotation["example"] = st.session_state[annotation_example_key]
             if annotation_min_key in st.session_state:
                 annotation["min_value"] = int(st.session_state[annotation_min_key])
             if annotation_max_key in st.session_state:
@@ -638,6 +1107,13 @@ def sync_schema_editor_state_from_widgets(schema):
                     for option in st.session_state[annotation_options_key].split(",")
                     if option.strip()
                 ]
+
+            example_count_key = get_example_editor_count_key(section_key, annotation_key)
+            if example_editor_state_is_complete(section_key, annotation_key):
+                annotation["example"] = serialize_example_blocks(
+                    build_example_blocks_from_state(section_key, annotation_key),
+                    annotation.get("type"),
+                )
 
 
 def render_schema_workflow_preview(schema, header_column, text_column):
@@ -657,15 +1133,25 @@ def render_schema_workflow_preview(schema, header_column, text_column):
         active_section = section_keys[0]
         st.session_state.editor_preview_section = active_section
 
+    if total_items > 1 and "preview_progress" not in st.session_state:
+        st.session_state.preview_progress = min(sample_index, total_items)
+
     st.markdown("#### Annotation Workflow Preview")
     st.caption("This preview mirrors the annotation workspace using a sample text from your uploaded data.")
 
     with st.container(border=True):
-        title_col, progress_col, nav_col = st.columns([0.44, 0.24, 0.32], gap="medium")
+        title_col, progress_col, nav_col = st.columns([0.42, 0.3, 0.28], gap="medium")
 
         with title_col:
-            st.markdown('<div class="cb-pane-label">Current item</div>', unsafe_allow_html=True)
-            st.markdown(f'<p class="cb-toolbar-title">{html_module.escape(sample_title)}</p>', unsafe_allow_html=True)
+            st.markdown(
+                f'<p class="cb-toolbar-inline"><span class="cb-toolbar-inline-meta">Item</span> '
+                f'{html_module.escape(sample_title)}</p>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<p class="cb-toolbar-progress">0/{len(sections)} sections touched</p>',
+                unsafe_allow_html=True,
+            )
 
         with progress_col:
             if total_items > 1:
@@ -673,19 +1159,18 @@ def render_schema_workflow_preview(schema, header_column, text_column):
                     "Preview item progress",
                     min_value=1,
                     max_value=total_items,
-                    value=min(sample_index, total_items),
                     step=1,
                     disabled=True,
+                    key="preview_progress",
                     label_visibility="collapsed",
                 )
             else:
                 st.progress(1.0, text="1")
-            st.caption(f"0/{len(sections)} sections touched")
 
         with nav_col:
             button_col1, button_col2 = st.columns(2, gap="small")
             with button_col1:
-                st.button("Previous", key="preview_previous", use_container_width=True, disabled=True)
+                st.button("Prev", key="preview_previous", use_container_width=True, disabled=True)
             with button_col2:
                 st.button("Next", key="preview_next", use_container_width=True, disabled=True)
 
@@ -715,12 +1200,22 @@ def render_schema_workflow_preview(schema, header_column, text_column):
 
         with st.container(border=True, height=EDITOR_PREVIEW_SECTION_HEIGHT):
             st.markdown('<div class="cb-pane-label">Annotation section</div>', unsafe_allow_html=True)
-            st.subheader(option_labels[preview_section])
+            st.markdown(
+                f'<p class="cb-section-title">{html_module.escape(option_labels[preview_section])}</p>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<p class="cb-secondary-copy">0/{len(preview_annotations)} responses completed in this section</p>',
+                unsafe_allow_html=True,
+            )
 
             section_instruction = preview_content.get("section_instruction", "")
             if section_instruction:
-                with st.expander("Instructions", expanded=False):
-                    st.write(section_instruction)
+                render_persistent_disclosure(
+                    "Instructions",
+                    f"preview_instructions__{preview_section}",
+                    lambda: render_disclosure_copy(section_instruction),
+                )
 
             if checkbox_only:
                 checkbox_columns = st.columns(2, gap="medium")
@@ -792,12 +1287,18 @@ def render_annotation_input(section_content, config, full_column_name, index):
             key=widget_key,
             help=config["tooltip"],
             height=120,
+            placeholder="Enter free-text response...",
         )
         st.session_state.annotations[full_column_name] = annotated
 
     if config.get("example"):
-        with st.expander(f"Examples for {config['name']}", expanded=False):
-            st.write(config["example"], unsafe_allow_html=True)
+        if config["type"] == "textbox":
+            st.markdown('<div class="cb-field-spacer"></div>', unsafe_allow_html=True)
+        render_persistent_disclosure(
+            "Examples",
+            f"annotation_examples__{full_column_name}",
+            lambda: render_example_blocks(config["example"], config.get("type")),
+        )
 
 
 def render_active_section(index, sections):
@@ -828,19 +1329,24 @@ def render_active_section(index, sections):
         selected_section = active_section
 
     section_content = dict(sections)[selected_section]
-    completed, total = get_section_completion(section_content, st.session_state.annotations)
     annotations = list(section_content.get("annotations", {}).values())
     checkbox_only = annotations and all(annotation["type"] == "checkbox" for annotation in annotations)
 
     with st.container(border=True, height=ANNOTATION_PANE_HEIGHT):
         st.markdown('<div class="cb-pane-label">Annotation section</div>', unsafe_allow_html=True)
-        st.subheader(option_labels[selected_section])
-        st.caption(f"{completed}/{total} responses completed in this section")
+        st.markdown(
+            f'<p class="cb-section-title">{html_module.escape(option_labels[selected_section])}</p>',
+            unsafe_allow_html=True,
+        )
+        completion_placeholder = st.empty()
 
         section_instruction = section_content.get("section_instruction", "")
         if section_instruction:
-            with st.expander("Instructions", expanded=False):
-                st.write(section_instruction)
+            render_persistent_disclosure(
+                "Instructions",
+                f"annotation_instructions__{selected_section}",
+                lambda: render_disclosure_copy(section_instruction),
+            )
 
         if checkbox_only:
             checkbox_columns = st.columns(2, gap="medium")
@@ -853,20 +1359,26 @@ def render_active_section(index, sections):
                 full_column_name = get_annotation_column_name(section_content, config)
                 render_annotation_input(section_content, config, full_column_name, index)
 
+        completed, total = get_section_completion(section_content, st.session_state.annotations)
+        completion_placeholder.markdown(
+            f'<p class="cb-secondary-copy">{completed}/{total} responses completed in this section</p>',
+            unsafe_allow_html=True,
+        )
+
 def render_annotation_utilities(index, data):
     with st.expander("Utilities", expanded=True):
         utility_col1, utility_col2 = st.columns(2, gap="large")
 
         with utility_col1:
-            st.markdown("##### Workflow")
-            if st.button("Edit CodeBook", use_container_width=True):
+            st.markdown('<p class="cb-utility-subheading">Workflow</p>', unsafe_allow_html=True)
+            if st.button("Edit CodeBook", key="utility_edit_codebook", use_container_width=True):
                 update_data(index, data)
                 st.session_state.data = data
                 st.session_state.page = "create_schema"
                 queue_auto_save()
                 st.rerun()
 
-            if st.button("Preview LLM Prompts", use_container_width=True):
+            if st.button("Preview LLM Prompts", key="utility_prompt_preview", use_container_width=True):
                 update_data(index, data)
                 st.session_state.data = data
                 st.session_state.previous_page = "annotate"
@@ -875,14 +1387,15 @@ def render_annotation_utilities(index, data):
                 st.rerun()
 
         with utility_col2:
-            st.markdown("##### Export")
+            st.markdown('<p class="cb-utility-subheading">Export</p>', unsafe_allow_html=True)
             csv_data = st.session_state.data.copy()
             update_data(index, csv_data)
             csv = csv_data.to_csv(index=False).encode("utf-8")
             st.download_button(
                 label="Download Annotated Data",
+                key="utility_download_data",
                 data=csv,
-                file_name="annotated-data.csv",
+                file_name="ground-truth.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
@@ -890,6 +1403,7 @@ def render_annotation_utilities(index, data):
             codebook_bundle = build_codebook_bundle(st.session_state.custom_schema)
             st.download_button(
                 label="Download CodeBook",
+                key="utility_download_codebook",
                 data=codebook_bundle,
                 file_name="codebook.zip",
                 mime="application/zip",
@@ -898,6 +1412,8 @@ def render_annotation_utilities(index, data):
 
 def process_data(uploaded_file, text_column):
     if 'data' not in st.session_state or st.session_state.data is None:
+        if uploaded_file is None:
+            raise ValueError("No uploaded data is available in this session.")
         uploaded_file.seek(0)  # Reset file pointer
         df = pd.read_csv(uploaded_file)
 
@@ -1344,6 +1860,7 @@ def schema_creation_page():
                                     ):
                                         selected_annotation_key = ann_key
                                         st.session_state[editor_state_key] = ann_key
+                                        st.rerun()
                                 with card_action_right:
                                     if st.button(
                                         "Delete",
@@ -1390,12 +1907,6 @@ def schema_creation_page():
                                 value=annotation.get("tooltip", ""),
                                 help="A detailed description of what this annotation measures. This is shown as help text during annotation and used as the main instruction in LLM prompts.",
                             )
-                            annotation["example"] = st.text_area(
-                                "Examples",
-                                key=f"{section_key}_{selected_annotation_key}_example",
-                                value=annotation.get("example", ""),
-                                help='Provide examples to guide annotators. For LLM prompts, use the format: Text: \\n"example text"\\n\\nResponse: \\n{"response": "value"}',
-                            )
 
                             if annotation["type"] == "likert":
                                 likert_left, likert_right = st.columns(2, gap="small")
@@ -1436,6 +1947,8 @@ def schema_creation_page():
                                 key=f"builder_preview_{section_key}_{selected_annotation_key}",
                             )
 
+                            render_example_editor(section_key, selected_annotation_key, annotation)
+
                 st.divider()
 
         if st.button("Add New Section"):
@@ -1457,7 +1970,8 @@ def schema_creation_page():
             st.rerun()
 
         if st.button("Start Annotating"):
-            st.session_state.data = process_data(st.session_state.uploaded_file, text_column)
+            uploaded_file = st.session_state.get("uploaded_file")
+            st.session_state.data = process_data(uploaded_file, text_column)
             st.session_state.page = 'annotate'
             queue_auto_save()
             st.rerun()
@@ -1471,6 +1985,7 @@ def update_data(index, data):
 
 def update_index(new_index):
     st.session_state.index = new_index
+    st.session_state._next_annotation_progress = new_index
     queue_auto_save()
     st.rerun()
 
