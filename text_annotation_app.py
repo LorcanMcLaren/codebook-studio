@@ -73,13 +73,13 @@ def render_header(home_action=None):
 
         /* Remove excess top padding from Streamlit's main content area */
         [data-testid="stAppViewBlockContainer"] {
-            padding-top: 0.35rem !important;
+            padding-top: 4.5rem !important;
             padding-bottom: 0.85rem !important;
             max-width: 1280px;
         }
 
         [data-testid="stMainBlockContainer"] {
-            padding-top: 0.25rem !important;
+            padding-top: 0 !important;
             padding-bottom: 0.5rem !important;
         }
 
@@ -176,6 +176,10 @@ def render_header(home_action=None):
             line-height: 1.25;
         }
 
+        .st-key-header_home {
+            margin-top: 2.6rem;
+        }
+
         .st-key-header_home button {
             all: unset;
             display: block;
@@ -269,12 +273,16 @@ def render_header(home_action=None):
 
         @media (max-width: 960px) {
             [data-testid="stAppViewBlockContainer"] {
-                padding-top: 0.25rem !important;
+                padding-top: 3.75rem !important;
                 padding-bottom: 0.6rem !important;
             }
 
             .cb-flow-step {
                 min-height: 0;
+            }
+
+            .st-key-header_home {
+                margin-top: 1.85rem;
             }
         }
 
