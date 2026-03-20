@@ -5,3 +5,4 @@ env
 data
 __pycache__
 *.code-workspace
+.streamlit/secrets.toml
