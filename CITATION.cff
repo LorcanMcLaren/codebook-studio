@@ -1,6 +1,13 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata below."
 title: "CodeBook Studio"
+abstract: "A web-based text annotation application for computational social science."
+keywords:
+  - "text annotation"
+  - "codebook"
+  - "computational social science"
+  - "annotation"
+  - "streamlit"
 type: software
 authors:
   - family-names: "McLaren"
