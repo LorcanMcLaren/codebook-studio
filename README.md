@@ -1,5 +1,7 @@
 # CodeBook Studio
 
+[![DOI](https://zenodo.org/badge/758504276.svg)](https://doi.org/10.5281/zenodo.19185938)
+
 CodeBook Studio is a codebook-driven text annotation app for computational social science. Define an annotation task once — with sections, instructions, tooltips, and worked examples — then annotate in the browser and export everything you need for research reporting and LLM benchmarking in [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab).
 
 The app supports the annotation types researchers most commonly need: binary labels (checkbox), categorical labels (dropdown), ordinal scales (Likert), and open-ended text responses (textbox). It works with any CSV data and does not require fixed column names.
@@ -87,7 +89,7 @@ The repository includes a [`CITATION.cff`](CITATION.cff) file for the software c
 
 APSR style:
 
-McLaren, Lorcan. 2026. *CodeBook Studio* (Version 0.1.0) [Computer software]. [https://github.com/LorcanMcLaren/codebook-studio](https://github.com/LorcanMcLaren/codebook-studio).
+McLaren, Lorcan. 2026. *CodeBook Studio* (Version v1.0.0) [Computer software]. Zenodo. [https://doi.org/10.5281/zenodo.19185938](https://doi.org/10.5281/zenodo.19185938).
 
 BibTeX:
 
@@ -96,7 +98,8 @@ BibTeX:
   author = {McLaren, Lorcan},
   title = {CodeBook Studio},
   year = {2026},
-  version = {0.1.0},
-  url = {https://github.com/LorcanMcLaren/codebook-studio}
+  version = {v1.0.0},
+  doi = {10.5281/zenodo.19185938},
+  url = {https://doi.org/10.5281/zenodo.19185938}
 }
 ```
