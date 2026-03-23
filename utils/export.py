@@ -47,6 +47,58 @@ def _latex_quote(text):
     return f"``{text}''"
 
 
+def _normalize_condition_value(annotation, value):
+    ann_type = annotation.get('type', '')
+
+    if value is None:
+        return None
+    if ann_type == 'checkbox':
+        lowered = str(value).strip().lower()
+        if lowered in {'1', 'true', 'yes'}:
+            return 1
+        if lowered in {'0', 'false', 'no'}:
+            return 0
+    if ann_type == 'likert':
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return value
+    if ann_type == 'textbox':
+        return str(value).strip()
+    return str(value)
+
+
+def _format_condition_value(annotation, value):
+    normalized = _normalize_condition_value(annotation, value)
+    if normalized is None:
+        return "an answer"
+    if annotation.get('type') == 'checkbox':
+        return "Yes" if normalized == 1 else "No"
+    return str(normalized)
+
+
+def _get_condition_note(schema, annotation):
+    condition = annotation.get('condition')
+    if not isinstance(condition, dict):
+        return ""
+
+    target_section = schema.get(condition.get('section_key'))
+    if not isinstance(target_section, dict):
+        return ""
+
+    target_annotation = target_section.get('annotations', {}).get(condition.get('annotation_key'))
+    if not isinstance(target_annotation, dict):
+        return ""
+
+    section_name = target_section.get('section_name') or condition.get('section_key', 'Section')
+    annotation_name = target_annotation.get('name') or condition.get('annotation_key', 'annotation')
+    expected_value = _format_condition_value(target_annotation, condition.get('value'))
+    return (
+        f'Annotators answer this question only if the question "{annotation_name}" '
+        f'in the section "{section_name}" is answered "{expected_value}".'
+    )
+
+
 def _response_type_line_latex(annotation):
     """Generate the response type line for a LaTeX codebook entry."""
     ann_type = annotation.get('type', '')
@@ -140,6 +192,10 @@ def generate_latex_codebook(schema):
             type_line = _response_type_line_latex(annotation)
             if type_line:
                 output.append(type_line)
+
+            condition_note = _get_condition_note(schema, annotation)
+            if condition_note:
+                output.append(f"    \\item \\textbf{{When to answer:}} {_escape_latex(condition_note)}")
 
             # Examples
             if example:
@@ -242,6 +298,10 @@ def generate_markdown_codebook(schema):
             type_line = _response_type_line_markdown(annotation)
             if type_line:
                 output.append(type_line)
+
+            condition_note = _get_condition_note(schema, annotation)
+            if condition_note:
+                output.append(f"- **When to answer:** {condition_note}")
 
             # Examples
             if example:

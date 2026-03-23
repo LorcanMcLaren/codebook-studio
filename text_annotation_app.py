@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 import json
 import io
+import base64
 import html as html_module
 import zipfile
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 
 from utils.export import generate_latex_codebook, generate_markdown_codebook
@@ -132,6 +135,10 @@ def render_header(home_action=None):
             margin-bottom: 1rem;
         }
 
+        .cb-hero-copy a {
+            color: var(--cb-accent);
+        }
+
         .cb-flow-step {
             padding: 1rem 1rem 0.95rem 1rem;
             border: 1px solid var(--cb-border);
@@ -170,6 +177,15 @@ def render_header(home_action=None):
             color: var(--cb-muted);
             line-height: 1.6;
             font-size: 0.95rem;
+        }
+
+        .cb-session-notice {
+            background: var(--cb-accent-soft);
+            color: var(--cb-accent);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.92rem;
         }
 
         .cb-toolbar-title {
@@ -228,17 +244,37 @@ def render_header(home_action=None):
             white-space: pre-wrap;
         }
 
-        .cb-footer {
-            margin-top: 0.8rem;
-            padding: 0.55rem 0 0.1rem 0;
-            color: #857d74;
-            text-align: center;
-            font-size: 0.88rem;
-            border-top: 1px solid var(--cb-border);
-        }
-
         .cb-footer a {
             color: #6f4a38 !important;
+        }
+
+        .cb-footer-divider {
+            border-top: 1px solid var(--cb-border);
+            margin-top: 0.8rem;
+        }
+
+        .cb-footer-credit {
+            color: #857d74;
+            font-size: 0.76rem !important;
+            margin: 0;
+        }
+
+        .cb-footer-credit a {
+            color: #6f4a38;
+        }
+
+        .st-key-footer_feedback button {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: var(--cb-accent) !important;
+            font-size: 0.88rem !important;
+            font-weight: 600 !important;
+            padding: 0 !important;
+        }
+
+        .st-key-footer_feedback button:hover {
+            text-decoration: underline;
         }
 
         .cb-builder-meta {
@@ -259,6 +295,59 @@ def render_header(home_action=None):
             color: var(--cb-muted);
             font-style: italic;
             line-height: 1.55;
+        }
+
+        .cb-conditional-notice {
+            border: 1px solid rgba(138, 79, 61, 0.18);
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(237, 225, 215, 0.72), rgba(249, 246, 241, 0.92));
+            padding: 0.95rem 1rem;
+            margin: 0.2rem 0 0.4rem 0;
+        }
+
+        .cb-conditional-notice-title {
+            color: var(--cb-accent);
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+
+        p.cb-conditional-notice-body,
+        [data-testid="stMarkdownContainer"] p.cb-conditional-notice-body {
+            color: var(--cb-ink);
+            line-height: 1.5 !important;
+            font-size: 0.8rem !important;
+            margin: 0;
+        }
+
+        .cb-preview-surface-marker,
+        .cb-preview-pane-marker {
+            display: none;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cb-preview-surface-marker) {
+            border-color: rgba(138, 79, 61, 0.22);
+            background:
+                radial-gradient(circle at top right, rgba(237, 225, 215, 0.78), transparent 34%),
+                linear-gradient(180deg, rgba(244, 238, 230, 0.96), rgba(250, 247, 242, 0.96));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 12px 30px rgba(72, 53, 34, 0.05);
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cb-preview-pane-marker) {
+            border-color: rgba(138, 79, 61, 0.18);
+            background: rgba(255, 252, 247, 0.9);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+        }
+
+        .cb-preview-kicker {
+            color: var(--cb-accent);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
         }
 
         .cb-example-list {
@@ -360,33 +449,48 @@ def render_header(home_action=None):
             height: 0.35rem;
         }
 
-        [class*="st-key-disclosure_toggle__"] button {
-            all: unset;
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-            color: var(--cb-ink);
-            cursor: pointer;
-            padding: 0.05rem 0;
-        }
-
-        [class*="st-key-disclosure_toggle__"] button p {
-            margin: 0;
+        .streamlit-expanderHeader {
             font-family: "Lora", serif !important;
-            font-size: 0.9rem;
-            font-weight: 600;
-            line-height: 1.3;
-            color: inherit;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+            line-height: 1.3 !important;
+            color: var(--cb-ink) !important;
         }
 
-        [class*="st-key-disclosure_toggle__"] button:hover {
-            color: var(--cb-accent);
+        .streamlit-expanderHeader p,
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] summary > div,
+        [data-testid="stExpander"] summary > div p,
+        [data-testid="stExpander"] summary [data-testid="stMarkdownContainer"] p,
+        [data-testid="stExpander"] summary [data-testid="stMarkdownContainer"] span {
+            font-family: "Lora", serif !important;
         }
 
-        [class*="st-key-disclosure_toggle__"] button:focus,
-        [class*="st-key-disclosure_toggle__"] button:focus-visible {
-            outline: none;
-            box-shadow: none;
+        .streamlit-expanderHeader:hover {
+            color: var(--cb-accent) !important;
+        }
+
+        .streamlit-expanderHeader svg {
+            color: var(--cb-accent) !important;
+        }
+
+        [data-testid="stExpander"] {
+            border: 1px solid var(--cb-border) !important;
+            border-radius: 16px !important;
+            background: rgba(255, 255, 255, 0.4) !important;
+            overflow: hidden;
+        }
+
+        [data-testid="stExpander"] details {
+            border: none !important;
+        }
+
+        [data-testid="stExpander"] summary {
+            padding: 0.05rem 0.15rem !important;
+        }
+
+        [data-testid="stExpanderDetails"] {
+            padding-top: 0.5rem !important;
         }
 
         .cb-toolbar-inline {
@@ -531,6 +635,10 @@ def get_annotation_column_name(section_content, annotation_content):
     return f"{section_content['section_name']}_{annotation_content['name']}"
 
 
+def get_annotation_widget_key(index, full_column_name):
+    return f"{index}_{full_column_name}"
+
+
 def is_answered_value(value):
     if isinstance(value, str):
         return value.strip() != ""
@@ -559,12 +667,365 @@ def format_last_save_caption(last_save):
     return f"Saved at {last_save.strftime('%I:%M %p UTC')}"
 
 
-def get_section_completion(section_content, annotation_values):
-    annotations = section_content.get("annotations", {})
+def get_section_display_name(section_key, section_content):
+    section_number = section_key.split("_")[-1]
+    fallback = f"Section {section_number}" if section_number.isdigit() else section_key.replace("_", " ").title()
+    return section_content.get("section_name") or fallback
+
+
+def get_annotation_display_name(section_key, section_content, annotation_key, annotation):
+    annotation_number = annotation_key.split("_")[-1]
+    fallback = (
+        f"Annotation {annotation_number}"
+        if annotation_number.isdigit()
+        else annotation_key.replace("_", " ").title()
+    )
+    annotation_name = annotation.get("name") or fallback
+    return f"{get_section_display_name(section_key, section_content)} -> {annotation_name}"
+
+
+def serialize_condition_target(section_key, annotation_key):
+    return f"{section_key}::{annotation_key}"
+
+
+def deserialize_condition_target(reference):
+    if not reference or "::" not in str(reference):
+        return None, None
+    section_key, annotation_key = str(reference).split("::", 1)
+    if not section_key or not annotation_key:
+        return None, None
+    return section_key, annotation_key
+
+
+def get_annotation_entries(schema):
+    entries = []
+    for section_key, section_content in get_schema_sections(schema):
+        for annotation_key in get_sorted_annotation_keys(section_content):
+            annotation = section_content.get("annotations", {}).get(annotation_key, {})
+            entries.append((section_key, section_content, annotation_key, annotation))
+    return entries
+
+
+def get_annotation_lookup(schema):
+    return {
+        (section_key, annotation_key): (section_content, annotation)
+        for section_key, section_content, annotation_key, annotation in get_annotation_entries(schema)
+    }
+
+
+def get_annotation_condition(annotation):
+    condition = annotation.get("condition")
+    if not isinstance(condition, dict):
+        return None
+
+    section_key = condition.get("section_key")
+    annotation_key = condition.get("annotation_key")
+    if not section_key or not annotation_key:
+        return None
+
+    return {
+        "section_key": section_key,
+        "annotation_key": annotation_key,
+        "value": condition.get("value"),
+    }
+
+
+def normalize_annotation_response_value(annotation, value):
+    if pd.isna(value):
+        return None
+
+    annotation_type = annotation.get("type", "checkbox")
+    if annotation_type == "checkbox":
+        lowered = str(value).strip().lower()
+        if lowered in {"1", "true", "yes"}:
+            return 1
+        if lowered in {"0", "false", "no"}:
+            return 0
+        return value
+
+    if annotation_type == "likert":
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return value
+
+    if annotation_type == "textbox":
+        return str(value).strip()
+
+    return str(value)
+
+
+def get_condition_response_options(annotation, include_current=None):
+    annotation_type = annotation.get("type", "checkbox")
+
+    if annotation_type == "checkbox":
+        options = [1, 0]
+    elif annotation_type == "dropdown":
+        options = list(annotation.get("options", []))
+    elif annotation_type == "likert":
+        min_value = int(annotation.get("min_value", 0))
+        max_value = int(annotation.get("max_value", 5))
+        if min_value > max_value:
+            min_value, max_value = max_value, min_value
+        options = list(range(min_value, max_value + 1))
+    else:
+        return None
+
+    normalized_current = normalize_annotation_response_value(annotation, include_current)
+    if normalized_current is not None and normalized_current not in options:
+        options = [normalized_current] + options
+
+    return options
+
+
+def format_condition_value(annotation, value):
+    normalized_value = normalize_annotation_response_value(annotation, value)
+    if normalized_value is None:
+        return "an answer"
+
+    if annotation.get("type") == "checkbox":
+        return "Yes" if normalized_value == 1 else "No"
+
+    return str(normalized_value)
+
+
+def get_annotation_condition_summary(schema, annotation):
+    condition = get_annotation_condition(annotation)
+    if not condition:
+        return ""
+
+    target_entry = get_annotation_lookup(schema).get((condition["section_key"], condition["annotation_key"]))
+    if not target_entry:
+        return "Condition saved, but the trigger annotation is missing."
+
+    target_section_content, target_annotation = target_entry
+    target_label = get_annotation_display_name(
+        condition["section_key"],
+        target_section_content,
+        condition["annotation_key"],
+        target_annotation,
+    )
+    expected_value = format_condition_value(target_annotation, condition.get("value"))
+    return f"Shown only when {target_label} = {expected_value}"
+
+
+def get_condition_requirement_text(schema, condition):
+    target_entry = get_annotation_lookup(schema).get((condition["section_key"], condition["annotation_key"]))
+    if not target_entry:
+        return "the codebook's prerequisite response has been recorded"
+
+    target_section_content, target_annotation = target_entry
+    target_name = target_annotation.get("name") or get_annotation_display_name(
+        condition["section_key"],
+        target_section_content,
+        condition["annotation_key"],
+        target_annotation,
+    )
+    section_name = get_section_display_name(condition["section_key"], target_section_content)
+    expected_value = format_condition_value(target_annotation, condition.get("value"))
+    return f'the recorded response to "{target_name}" in "{section_name}" is "{expected_value}"'
+
+
+def render_conditional_notice(title, body):
+    safe_title = html_module.escape(title)
+    safe_body = html_module.escape(body)
+    st.markdown(
+        (
+            '<div class="cb-conditional-notice">'
+            f'<div class="cb-conditional-notice-title">{safe_title}</div>'
+            f'<p class="cb-conditional-notice-body">{safe_body}</p>'
+            '</div>'
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def get_section_condition_notice(schema, section_key, section_content):
+    requirements = []
+    seen_requirements = set()
+
+    for annotation_key in get_sorted_annotation_keys(section_content):
+        annotation = section_content.get("annotations", {}).get(annotation_key, {})
+        condition = get_annotation_condition(annotation)
+        if not condition:
+            continue
+
+        requirement_text = get_condition_requirement_text(schema, condition)
+        if requirement_text not in seen_requirements:
+            seen_requirements.add(requirement_text)
+            requirements.append(requirement_text)
+
+    if not requirements:
+        return (
+            "Section conditional on an earlier answer",
+            "This section has no active questions yet because it is conditional on an earlier response.",
+        )
+
+    if len(requirements) == 1:
+        return (
+            "Section conditional on an earlier answer",
+            f'This section is shown only when {requirements[0]}.',
+        )
+
+    return (
+        "Section conditional on earlier answers",
+        "This section contains conditional questions. It is shown only when one of these conditions is met: "
+        + "; ".join(requirements)
+        + ".",
+    )
+
+
+def get_available_condition_sources(schema, current_section_key, current_annotation_key):
+    sources = []
+    for section_key, section_content, annotation_key, annotation in get_annotation_entries(schema):
+        if section_key == current_section_key and annotation_key == current_annotation_key:
+            break
+        sources.append((section_key, section_content, annotation_key, annotation))
+    return sources
+
+
+def build_annotation_condition(schema, target_reference, raw_value):
+    target_section_key, target_annotation_key = deserialize_condition_target(target_reference)
+    if not target_section_key or not target_annotation_key:
+        return None
+
+    target_entry = get_annotation_lookup(schema).get((target_section_key, target_annotation_key))
+    if not target_entry:
+        return None
+
+    _, target_annotation = target_entry
+    normalized_value = normalize_annotation_response_value(target_annotation, raw_value)
+    if normalized_value is None or (target_annotation.get("type") == "textbox" and normalized_value == ""):
+        return None
+
+    return {
+        "section_key": target_section_key,
+        "annotation_key": target_annotation_key,
+        "value": normalized_value,
+    }
+
+
+def remove_conditions_referencing_target(schema, target_section_key, target_annotation_key=None):
+    for _, section_content, _, annotation in get_annotation_entries(schema):
+        condition = get_annotation_condition(annotation)
+        if not condition:
+            continue
+
+        matches_section = condition["section_key"] == target_section_key
+        matches_annotation = (
+            target_annotation_key is None or condition["annotation_key"] == target_annotation_key
+        )
+        if matches_section and matches_annotation:
+            annotation.pop("condition", None)
+
+
+def is_annotation_active(schema, section_key, annotation_key, annotation_values, lookup=None, visited=None):
+    lookup = lookup or get_annotation_lookup(schema)
+    current_entry = lookup.get((section_key, annotation_key))
+    if not current_entry:
+        return True
+
+    section_content, annotation = current_entry
+    condition = get_annotation_condition(annotation)
+    if not condition:
+        return True
+
+    target_key = (condition["section_key"], condition["annotation_key"])
+    if target_key == (section_key, annotation_key):
+        return True
+
+    target_entry = lookup.get(target_key)
+    if not target_entry:
+        return True
+
+    visited = visited or set()
+    if (section_key, annotation_key) in visited:
+        return True
+
+    target_section_content, target_annotation = target_entry
+    if not is_annotation_active(
+        schema,
+        condition["section_key"],
+        condition["annotation_key"],
+        annotation_values,
+        lookup=lookup,
+        visited=visited | {(section_key, annotation_key)},
+    ):
+        return False
+
+    target_column_name = get_annotation_column_name(target_section_content, target_annotation)
+    actual_value = normalize_annotation_response_value(target_annotation, annotation_values.get(target_column_name))
+    expected_value = normalize_annotation_response_value(target_annotation, condition.get("value"))
+
+    if actual_value is None:
+        return False
+    if target_annotation.get("type") == "textbox" and actual_value == "":
+        return False
+
+    return actual_value == expected_value
+
+
+def get_active_annotations(schema, section_key, section_content, annotation_values):
+    lookup = get_annotation_lookup(schema)
+    active_annotations = []
+
+    for annotation_key in get_sorted_annotation_keys(section_content):
+        annotation = section_content.get("annotations", {}).get(annotation_key, {})
+        if is_annotation_active(schema, section_key, annotation_key, annotation_values, lookup=lookup):
+            active_annotations.append((annotation_key, annotation))
+
+    return active_annotations
+
+
+def sync_annotation_state_from_widgets(index, sections):
+    annotations = st.session_state.get("annotations", {})
+
+    for _, section_content in sections:
+        for annotation in section_content.get("annotations", {}).values():
+            full_column_name = get_annotation_column_name(section_content, annotation)
+            widget_key = get_annotation_widget_key(index, full_column_name)
+            if widget_key not in st.session_state:
+                continue
+
+            widget_value = st.session_state[widget_key]
+            annotation_type = annotation.get("type", "checkbox")
+
+            if annotation_type == "checkbox":
+                annotations[full_column_name] = 1 if widget_value else 0
+            elif annotation_type == "dropdown":
+                annotations[full_column_name] = widget_value if widget_value else None
+            else:
+                annotations[full_column_name] = widget_value
+
+    st.session_state.annotations = annotations
+
+
+def clear_inactive_annotation_values(schema, sections, annotation_values, index):
+    lookup = get_annotation_lookup(schema)
+    changed = False
+
+    for section_key, section_content in sections:
+        for annotation_key, annotation in section_content.get("annotations", {}).items():
+            if is_annotation_active(schema, section_key, annotation_key, annotation_values, lookup=lookup):
+                continue
+
+            full_column_name = get_annotation_column_name(section_content, annotation)
+            if annotation_values.get(full_column_name) is not None:
+                annotation_values[full_column_name] = None
+                changed = True
+
+            st.session_state.pop(get_annotation_widget_key(index, full_column_name), None)
+
+    if changed:
+        st.session_state.annotations = annotation_values
+
+
+def get_section_completion(schema, section_key, section_content, annotation_values):
+    annotations = get_active_annotations(schema, section_key, section_content, annotation_values)
     total = len(annotations)
     completed = 0
 
-    for annotation in annotations.values():
+    for _, annotation in annotations:
         full_column_name = get_annotation_column_name(section_content, annotation)
         if is_answered_value(annotation_values.get(full_column_name)):
             completed += 1
@@ -572,10 +1033,10 @@ def get_section_completion(section_content, annotation_values):
     return completed, total
 
 
-def get_completed_sections(sections, annotation_values):
+def get_completed_sections(schema, sections, annotation_values):
     completed_sections = 0
-    for _, section_content in sections:
-        completed, total = get_section_completion(section_content, annotation_values)
+    for section_key, section_content in sections:
+        completed, total = get_section_completion(schema, section_key, section_content, annotation_values)
         if total > 0 and completed > 0:
             completed_sections += 1
     return completed_sections
@@ -631,10 +1092,134 @@ def reset_working_session():
     st.session_state.page = "landing"
 
 
+@st.dialog("Start Fresh")
+def confirm_start_fresh(saved_data):
+    st.markdown("Starting fresh will **permanently clear** your saved session.")
+
+    schema = saved_data.get("custom_schema")
+    csv_str = saved_data.get("data_csv")
+
+    if schema or csv_str:
+        st.markdown("Download your work before continuing:")
+        if csv_str:
+            st.download_button(
+                label="Download Annotated Data",
+                data=csv_str.encode("utf-8"),
+                file_name="ground-truth.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        if schema:
+            codebook_bundle = build_codebook_bundle(schema)
+            st.download_button(
+                label="Download CodeBook",
+                data=codebook_bundle,
+                file_name="codebook.zip",
+                mime="application/zip",
+                use_container_width=True,
+            )
+
+    if st.button("Confirm", use_container_width=True, type="primary"):
+        clear_save()
+        reset_working_session()
+        st.rerun()
+
+
+FEEDBACK_REPO = "LorcanMcLaren/codebook-studio"
+FEEDBACK_LABELS = {"Bug report": "bug", "Feature request": "enhancement", "General feedback": "feedback"}
+
+
+@st.dialog("Send Feedback")
+def feedback_dialog():
+    feedback_type = st.selectbox(
+        "Type",
+        options=list(FEEDBACK_LABELS.keys()),
+    )
+    description = st.text_area(
+        "Description",
+        placeholder="Tell us what happened or what you'd like to see...",
+        height=150,
+    )
+    screenshot = st.file_uploader(
+        "Screenshot (optional)",
+        type=["png", "jpg", "jpeg", "gif", "webp"],
+    )
+    contact = st.text_input(
+        "Contact (optional)",
+        placeholder="Email or GitHub username in case we need to follow up",
+    )
+
+    if st.button("Submit", use_container_width=True, type="primary"):
+        if not description.strip():
+            st.warning("Please add a description.")
+            return
+
+        token = st.secrets.get("GITHUB_TOKEN", "")
+        if not token:
+            st.error("Feedback submission is not configured. Please contact the maintainer.")
+            return
+
+        title = f"[{feedback_type}] {description.strip()[:80]}"
+        body_parts = [f"**Type:** {feedback_type}", f"**Description:**\n{description.strip()}"]
+        if contact.strip():
+            body_parts.append(f"**Contact:** {contact.strip()}")
+
+        api_headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        }
+
+        # Upload screenshot to repo if provided, and embed the URL in the issue body
+        if screenshot is not None:
+            img_bytes = screenshot.getvalue()
+            b64 = base64.b64encode(img_bytes).decode()
+            ext = screenshot.name.rsplit(".", 1)[-1].lower()
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+            path = f".github/feedback-assets/{ts}.{ext}"
+            upload_payload = json.dumps({
+                "message": f"Feedback screenshot ({ts})",
+                "content": b64,
+            }).encode()
+            upload_req = urllib.request.Request(
+                f"https://api.github.com/repos/{FEEDBACK_REPO}/contents/{path}",
+                data=upload_payload,
+                headers=api_headers,
+                method="PUT",
+            )
+            try:
+                resp = urllib.request.urlopen(upload_req)
+                upload_data = json.loads(resp.read().decode())
+                img_url = upload_data["content"]["download_url"]
+                body_parts.append(f"**Screenshot:**\n\n![screenshot]({img_url})")
+            except urllib.error.HTTPError:
+                body_parts.append("*Screenshot was attached but failed to upload.*")
+
+        body = "\n\n".join(body_parts)
+        label = FEEDBACK_LABELS.get(feedback_type, "feedback")
+        payload = json.dumps({"title": title, "body": body, "labels": [label]}).encode()
+
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{FEEDBACK_REPO}/issues",
+            data=payload,
+            headers=api_headers,
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(req)
+            st.success("Thanks for your feedback!")
+        except urllib.error.HTTPError:
+            st.error("Something went wrong. Please try again later.")
+
+
 def render_annotation_toolbar(index, data, sections):
     title_column = st.session_state.custom_schema["header_column"]
     current_title = data.iloc[index][title_column]
-    completed_sections = get_completed_sections(sections, st.session_state.annotations)
+    completed_sections = get_completed_sections(
+        st.session_state.custom_schema,
+        sections,
+        st.session_state.annotations,
+    )
     current_item = index + 1
 
     if "_next_annotation_progress" in st.session_state:
@@ -754,7 +1339,7 @@ def get_editor_preview_sample(header_column, text_column):
     return sample_title, sample_text, sample_index, total_items
 
 
-def render_editor_preview_annotation(annotation, key):
+def render_editor_preview_annotation(annotation, key, condition_summary=""):
     label = annotation.get("name") or "Untitled annotation"
     tooltip = annotation.get("tooltip", "")
 
@@ -779,6 +1364,9 @@ def render_editor_preview_annotation(annotation, key):
     elif annotation["type"] == "textbox":
         st.text_area(label, help=tooltip, key=key, height=120, disabled=True, placeholder="Free-text response")
 
+    if condition_summary:
+        st.caption(condition_summary)
+
     if annotation.get("example"):
         if annotation["type"] == "textbox":
             st.markdown('<div class="cb-field-spacer"></div>', unsafe_allow_html=True)
@@ -799,23 +1387,28 @@ def format_example_response_for_display(response_value, annotation_type):
     return "" if response_value is None else str(response_value)
 
 
-def render_persistent_disclosure(label, state_key, render_content, default_open=False):
+def sync_persistent_disclosure_state(state_key):
+    widget_key = f"_widget_{state_key}"
+    if widget_key in st.session_state:
+        st.session_state[state_key] = st.session_state[widget_key]
+
+
+def render_persistent_disclosure(label, state_key, render_content, default_open=True):
+    widget_key = f"_widget_{state_key}"
+
     if state_key not in st.session_state:
         st.session_state[state_key] = default_open
+    if widget_key not in st.session_state:
+        st.session_state[widget_key] = st.session_state[state_key]
 
-    is_open = st.session_state[state_key]
-    icon = "▾" if is_open else "▸"
-
-    with st.container(border=True):
-        if st.button(
-            f"{icon}  {label}",
-            key=f"disclosure_toggle__{state_key}",
-            use_container_width=True,
-        ):
-            st.session_state[state_key] = not st.session_state[state_key]
-
-        if st.session_state[state_key]:
-            render_content()
+    with st.expander(
+        label,
+        expanded=st.session_state[state_key],
+        key=widget_key,
+        on_change=sync_persistent_disclosure_state,
+        args=(state_key,),
+    ):
+        render_content()
 
 
 def render_disclosure_copy(text):
@@ -891,6 +1484,18 @@ def get_annotation_response_summary(annotation):
 
 def get_annotation_editor_state_key(section_key):
     return f"editor_selected_annotation_{section_key}"
+
+
+def get_condition_enabled_widget_key(section_key, annotation_key):
+    return f"{section_key}_{annotation_key}_condition_enabled"
+
+
+def get_condition_target_widget_key(section_key, annotation_key):
+    return f"{section_key}_{annotation_key}_condition_target"
+
+
+def get_condition_value_widget_key(section_key, annotation_key):
+    return f"{section_key}_{annotation_key}_condition_value"
 
 
 def get_example_editor_count_key(section_key, annotation_key):
@@ -1090,6 +1695,9 @@ def sync_schema_editor_state_from_widgets(schema):
             annotation_min_key = f"{section_key}_{annotation_key}_min_value"
             annotation_max_key = f"{section_key}_{annotation_key}_max_value"
             annotation_options_key = f"{section_key}_{annotation_key}_options"
+            condition_enabled_key = get_condition_enabled_widget_key(section_key, annotation_key)
+            condition_target_key = get_condition_target_widget_key(section_key, annotation_key)
+            condition_value_key = get_condition_value_widget_key(section_key, annotation_key)
 
             if annotation_name_key in st.session_state:
                 annotation["name"] = st.session_state[annotation_name_key]
@@ -1107,6 +1715,19 @@ def sync_schema_editor_state_from_widgets(schema):
                     for option in st.session_state[annotation_options_key].split(",")
                     if option.strip()
                 ]
+
+            if st.session_state.get(condition_enabled_key):
+                condition = build_annotation_condition(
+                    schema,
+                    st.session_state.get(condition_target_key),
+                    st.session_state.get(condition_value_key),
+                )
+                if condition:
+                    annotation["condition"] = condition
+                elif "condition" in annotation:
+                    annotation.pop("condition", None)
+            elif condition_enabled_key in st.session_state and "condition" in annotation:
+                annotation.pop("condition", None)
 
             example_count_key = get_example_editor_count_key(section_key, annotation_key)
             if example_editor_state_is_complete(section_key, annotation_key):
@@ -1140,6 +1761,8 @@ def render_schema_workflow_preview(schema, header_column, text_column):
     st.caption("This preview mirrors the annotation workspace using a sample text from your uploaded data.")
 
     with st.container(border=True):
+        st.markdown('<div class="cb-preview-surface-marker"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="cb-preview-kicker">Preview workspace</div>', unsafe_allow_html=True)
         title_col, progress_col, nav_col = st.columns([0.42, 0.3, 0.28], gap="medium")
 
         with title_col:
@@ -1178,6 +1801,7 @@ def render_schema_workflow_preview(schema, header_column, text_column):
 
     with preview_left:
         with st.container(border=True, height=EDITOR_PREVIEW_TEXT_HEIGHT):
+            st.markdown('<div class="cb-preview-pane-marker"></div>', unsafe_allow_html=True)
             st.markdown('<div class="cb-pane-label">Document text</div>', unsafe_allow_html=True)
             safe_text = html_module.escape(sample_text).replace("\n", "<br>")
             st.markdown(f'<div class="cb-document">{safe_text}</div>', unsafe_allow_html=True)
@@ -1195,10 +1819,14 @@ def render_schema_workflow_preview(schema, header_column, text_column):
             preview_section = active_section
 
         preview_content = dict(sections)[preview_section]
-        preview_annotations = list(preview_content.get("annotations", {}).values())
-        checkbox_only = preview_annotations and all(annotation["type"] == "checkbox" for annotation in preview_annotations)
+        preview_annotations = [
+            (annotation_key, preview_content.get("annotations", {}).get(annotation_key, {}))
+            for annotation_key in get_sorted_annotation_keys(preview_content)
+        ]
+        checkbox_only = preview_annotations and all(annotation["type"] == "checkbox" for _, annotation in preview_annotations)
 
         with st.container(border=True, height=EDITOR_PREVIEW_SECTION_HEIGHT):
+            st.markdown('<div class="cb-preview-pane-marker"></div>', unsafe_allow_html=True)
             st.markdown('<div class="cb-pane-label">Annotation section</div>', unsafe_allow_html=True)
             st.markdown(
                 f'<p class="cb-section-title">{html_module.escape(option_labels[preview_section])}</p>',
@@ -1219,12 +1847,20 @@ def render_schema_workflow_preview(schema, header_column, text_column):
 
             if checkbox_only:
                 checkbox_columns = st.columns(2, gap="medium")
-                for idx, annotation in enumerate(preview_annotations):
+                for idx, (_, annotation) in enumerate(preview_annotations):
                     with checkbox_columns[idx % 2]:
-                        render_editor_preview_annotation(annotation, key=f"preview_{preview_section}_{idx}")
+                        render_editor_preview_annotation(
+                            annotation,
+                            key=f"preview_{preview_section}_{idx}",
+                            condition_summary=get_annotation_condition_summary(schema, annotation),
+                        )
             else:
-                for idx, annotation in enumerate(preview_annotations):
-                    render_editor_preview_annotation(annotation, key=f"preview_{preview_section}_{idx}")
+                for idx, (_, annotation) in enumerate(preview_annotations):
+                    render_editor_preview_annotation(
+                        annotation,
+                        key=f"preview_{preview_section}_{idx}",
+                        condition_summary=get_annotation_condition_summary(schema, annotation),
+                    )
 
 
 def sync_annotations_count():
@@ -1244,7 +1880,7 @@ def sync_annotations_count():
 
 def render_annotation_input(section_content, config, full_column_name, index):
     current_value = st.session_state.annotations.get(full_column_name)
-    widget_key = f"{index}_{full_column_name}"
+    widget_key = get_annotation_widget_key(index, full_column_name)
 
     if config["type"] == "checkbox":
         annotated = st.checkbox(
@@ -1329,8 +1965,13 @@ def render_active_section(index, sections):
         selected_section = active_section
 
     section_content = dict(sections)[selected_section]
-    annotations = list(section_content.get("annotations", {}).values())
-    checkbox_only = annotations and all(annotation["type"] == "checkbox" for annotation in annotations)
+    annotations = get_active_annotations(
+        st.session_state.custom_schema,
+        selected_section,
+        section_content,
+        st.session_state.annotations,
+    )
+    checkbox_only = annotations and all(annotation["type"] == "checkbox" for _, annotation in annotations)
 
     with st.container(border=True, height=ANNOTATION_PANE_HEIGHT):
         st.markdown('<div class="cb-pane-label">Annotation section</div>', unsafe_allow_html=True)
@@ -1348,18 +1989,30 @@ def render_active_section(index, sections):
                 lambda: render_disclosure_copy(section_instruction),
             )
 
-        if checkbox_only:
+        if not annotations:
+            notice_title, notice_body = get_section_condition_notice(
+                st.session_state.custom_schema,
+                selected_section,
+                section_content,
+            )
+            render_conditional_notice(notice_title, notice_body)
+        elif checkbox_only:
             checkbox_columns = st.columns(2, gap="medium")
-            for idx, config in enumerate(annotations):
+            for idx, (_, config) in enumerate(annotations):
                 full_column_name = get_annotation_column_name(section_content, config)
                 with checkbox_columns[idx % 2]:
                     render_annotation_input(section_content, config, full_column_name, index)
         else:
-            for config in annotations:
+            for _, config in annotations:
                 full_column_name = get_annotation_column_name(section_content, config)
                 render_annotation_input(section_content, config, full_column_name, index)
 
-        completed, total = get_section_completion(section_content, st.session_state.annotations)
+        completed, total = get_section_completion(
+            st.session_state.custom_schema,
+            selected_section,
+            section_content,
+            st.session_state.annotations,
+        )
         completion_placeholder.markdown(
             f'<p class="cb-secondary-copy">{completed}/{total} responses completed in this section</p>',
             unsafe_allow_html=True,
@@ -1471,6 +2124,8 @@ def annotation_page():
 
     sections = get_schema_sections(st.session_state.custom_schema)
     initialize_annotation_state(index, data, sections)
+    sync_annotation_state_from_widgets(index, sections)
+    clear_inactive_annotation_values(st.session_state.custom_schema, sections, st.session_state.annotations, index)
 
     render_annotation_toolbar(index, data, sections)
     st.write("")
@@ -1540,11 +2195,14 @@ def landing_page():
         st.write("")
         st.markdown("#### Research workflow")
         st.markdown(
-            '<div class="cb-subtle-note">CodeBook Studio is built for computational social science workflows '
+            '<div class="cb-hero-copy">CodeBook Studio is built for computational social science workflows '
             'that need a consistent annotation scheme across human coding, LLM prompt preview, and research '
             'reporting. Exported JSON CodeBooks can be used directly in '
             '<a href="https://github.com/LorcanMcLaren/codebook-lab" target="_blank">CodeBook Lab</a> '
-            'to run and evaluate LLM annotation experiments from the same task definition.</div>',
+            'to run and evaluate LLM annotation experiments from the same task definition.<br><br>'
+            'If you use CodeBook Studio in research, please cite the software '
+            'repository: <a href="https://github.com/LorcanMcLaren/codebook-studio" target="_blank">'
+            'github.com/LorcanMcLaren/codebook-studio</a>.</div>',
             unsafe_allow_html=True,
         )
 
@@ -1554,25 +2212,23 @@ def landing_page():
 
             if saved_data:
                 display_time = format_saved_session_timestamp(saved_data.get("updated_at", ""))
-                if display_time:
-                    st.info(f"Saved session available from {display_time}.")
-                else:
-                    st.info("Saved session available.")
-                st.warning(
-                    "Starting fresh will clear this saved session. Download your CodeBook and annotated data "
-                    "first if you want to keep your progress."
+                session_msg = (
+                    f"Saved session available from {display_time}."
+                    if display_time
+                    else "Saved session available."
                 )
-
+                st.markdown(
+                    f'<div class="cb-session-notice">{session_msg}</div>',
+                    unsafe_allow_html=True,
+                )
                 resume_col, fresh_col = st.columns(2, gap="small")
                 with resume_col:
-                    if st.button("Resume Session", use_container_width=True):
+                    if st.button("Resume Session", type="primary", use_container_width=True):
                         restore_session_state(saved_data)
                         st.rerun()
                 with fresh_col:
                     if st.button("Start Fresh", use_container_width=True):
-                        clear_save()
-                        reset_working_session()
-                        st.rerun()
+                        confirm_start_fresh(saved_data)
             else:
                 uploaded_file = st.file_uploader(
                     "Upload your CSV data",
@@ -1625,13 +2281,6 @@ def landing_page():
                 else:
                     st.caption("Start with a CSV file. You can attach a CodeBook after the upload step.")
 
-    st.write("")
-    st.markdown(
-        '<div class="cb-subtle-note">If you use CodeBook Studio in research, please cite the software '
-        'repository: <a href="https://github.com/LorcanMcLaren/codebook-studio" target="_blank">'
-        'github.com/LorcanMcLaren/codebook-studio</a>.</div>',
-        unsafe_allow_html=True,
-    )
     flush_queued_auto_save()
 
 
@@ -1729,6 +2378,7 @@ def schema_creation_page():
 
     def delete_section(section_key):
         del st.session_state.custom_schema[section_key]
+        remove_conditions_referencing_target(st.session_state.custom_schema, section_key)
         st.session_state.annotations_count.pop(section_key, None)
         st.session_state.pop(get_annotation_editor_state_key(section_key), None)
         st.rerun()
@@ -1752,6 +2402,11 @@ def schema_creation_page():
         annotations = st.session_state.custom_schema[section_key].get("annotations", {})
         if annotation_key in annotations:
             del annotations[annotation_key]
+            remove_conditions_referencing_target(
+                st.session_state.custom_schema,
+                section_key,
+                annotation_key,
+            )
 
         annotation_keys = get_sorted_annotation_keys(st.session_state.custom_schema[section_key])
         editor_state_key = get_annotation_editor_state_key(section_key)
@@ -1827,6 +2482,10 @@ def schema_creation_page():
                             annotation = section["annotations"][ann_key]
                             display_name = annotation.get("name") or f"Annotation {ann_idx}"
                             description = annotation.get("tooltip", "").strip()
+                            condition_summary = get_annotation_condition_summary(
+                                st.session_state.custom_schema,
+                                annotation,
+                            )
                             if description and len(description) > 120:
                                 description = f"{description[:117].rstrip()}..."
                             if not description:
@@ -1843,6 +2502,8 @@ def schema_creation_page():
                                     f'<div class="cb-builder-summary">{html_module.escape(description)}</div>',
                                     unsafe_allow_html=True,
                                 )
+                                if condition_summary:
+                                    st.caption(condition_summary)
 
                                 card_action_left, card_action_right = st.columns([0.55, 0.45], gap="small")
                                 with card_action_left:
@@ -1941,13 +2602,145 @@ def schema_creation_page():
                             else:
                                 st.caption("No additional settings are needed for this response type.")
 
-                            st.markdown("###### Annotation preview")
-                            render_editor_preview_annotation(
-                                annotation,
-                                key=f"builder_preview_{section_key}_{selected_annotation_key}",
+                            st.markdown("###### Conditional display")
+                            st.caption(
+                                "Optional. Conditional annotations only appear when an earlier annotation has the chosen response."
                             )
 
+                            saved_condition = get_annotation_condition(annotation)
+                            available_sources = get_available_condition_sources(
+                                st.session_state.custom_schema,
+                                section_key,
+                                selected_annotation_key,
+                            )
+                            source_labels = {
+                                serialize_condition_target(source_section_key, source_annotation_key): get_annotation_display_name(
+                                    source_section_key,
+                                    source_section_content,
+                                    source_annotation_key,
+                                    source_annotation,
+                                )
+                                for source_section_key, source_section_content, source_annotation_key, source_annotation in available_sources
+                            }
+                            existing_reference = None
+                            if saved_condition:
+                                existing_reference = serialize_condition_target(
+                                    saved_condition["section_key"],
+                                    saved_condition["annotation_key"],
+                                )
+                                target_entry = get_annotation_lookup(st.session_state.custom_schema).get(
+                                    (saved_condition["section_key"], saved_condition["annotation_key"])
+                                )
+                                if existing_reference not in source_labels and target_entry:
+                                    target_section_content, target_annotation = target_entry
+                                    source_labels[existing_reference] = (
+                                        get_annotation_display_name(
+                                            saved_condition["section_key"],
+                                            target_section_content,
+                                            saved_condition["annotation_key"],
+                                            target_annotation,
+                                        )
+                                        + " (currently saved)"
+                                    )
+
+                            condition_enabled_key = get_condition_enabled_widget_key(section_key, selected_annotation_key)
+                            condition_target_key = get_condition_target_widget_key(section_key, selected_annotation_key)
+                            condition_value_key = get_condition_value_widget_key(section_key, selected_annotation_key)
+
+                            condition_enabled = st.checkbox(
+                                "Make this annotation conditional",
+                                key=condition_enabled_key,
+                                value=bool(saved_condition),
+                                disabled=not source_labels,
+                                help="Conditions can target annotations that appear earlier in the workflow.",
+                            )
+
+                            if not source_labels:
+                                annotation.pop("condition", None)
+                                st.caption("Add an earlier annotation first if you want to make this one conditional.")
+                            elif condition_enabled:
+                                source_options = list(source_labels.keys())
+                                default_reference = (
+                                    existing_reference if existing_reference in source_labels else source_options[0]
+                                )
+                                selected_reference = st.selectbox(
+                                    "Depends on",
+                                    options=source_options,
+                                    index=source_options.index(default_reference),
+                                    key=condition_target_key,
+                                    format_func=lambda ref: source_labels[ref],
+                                )
+
+                                target_section_key, target_annotation_key = deserialize_condition_target(selected_reference)
+                                target_section_content = st.session_state.custom_schema[target_section_key]
+                                target_annotation = target_section_content["annotations"][target_annotation_key]
+                                target_options = get_condition_response_options(
+                                    target_annotation,
+                                    include_current=saved_condition.get("value") if saved_condition else None,
+                                )
+
+                                if target_options is None:
+                                    condition_value = st.text_input(
+                                        "Show when response exactly matches",
+                                        key=condition_value_key,
+                                        value=(
+                                            str(saved_condition.get("value", ""))
+                                            if saved_condition
+                                            and saved_condition["section_key"] == target_section_key
+                                            and saved_condition["annotation_key"] == target_annotation_key
+                                            else ""
+                                        ),
+                                        help="Textbox conditions match the response exactly after trimming whitespace.",
+                                    )
+                                else:
+                                    default_value = (
+                                        normalize_annotation_response_value(target_annotation, saved_condition.get("value"))
+                                        if saved_condition
+                                        and saved_condition["section_key"] == target_section_key
+                                        and saved_condition["annotation_key"] == target_annotation_key
+                                        else target_options[0]
+                                    )
+                                    condition_value = st.selectbox(
+                                        "Show when response is",
+                                        options=target_options,
+                                        index=target_options.index(default_value)
+                                        if default_value in target_options
+                                        else 0,
+                                        key=condition_value_key,
+                                        format_func=lambda value: format_condition_value(target_annotation, value),
+                                    )
+
+                                condition = build_annotation_condition(
+                                    st.session_state.custom_schema,
+                                    selected_reference,
+                                    condition_value,
+                                )
+                                if condition:
+                                    annotation["condition"] = condition
+                                    st.caption(get_annotation_condition_summary(st.session_state.custom_schema, annotation))
+                                else:
+                                    annotation.pop("condition", None)
+                            else:
+                                annotation.pop("condition", None)
+
                             render_example_editor(section_key, selected_annotation_key, annotation)
+
+                            st.divider()
+                            with st.container(border=True):
+                                st.markdown('<div class="cb-preview-surface-marker"></div>', unsafe_allow_html=True)
+                                st.markdown('<div class="cb-preview-kicker">Annotator view</div>', unsafe_allow_html=True)
+                                st.markdown("###### Annotation preview")
+                                st.caption(
+                                    "This is how the annotation will appear to annotators during the workflow."
+                                )
+                                render_editor_preview_annotation(
+                                    annotation,
+                                    key=f"builder_preview_{section_key}_{selected_annotation_key}",
+                                    condition_summary=get_annotation_condition_summary(
+                                        st.session_state.custom_schema,
+                                        annotation,
+                                    ),
+                                )
 
                 st.divider()
 
@@ -2024,9 +2817,14 @@ elif st.session_state.page == 'prompt_preview':
 
 
 # Add a footer
-footer = """
-<div class="cb-footer">
-<p>Developed by <a href="https://www.lorcanmclaren.com" target="_blank">Lorcan McLaren</a></p>
-</div>
-"""
-st.markdown(footer, unsafe_allow_html=True)
+st.markdown('<div class="cb-footer-divider"></div>', unsafe_allow_html=True)
+footer_left, footer_center, footer_right = st.columns(3)
+with footer_left:
+    st.markdown(
+        '<p class="cb-footer-credit">Developed by '
+        '<a href="https://www.lorcanmclaren.com" target="_blank">Lorcan McLaren</a></p>',
+        unsafe_allow_html=True,
+    )
+with footer_center:
+    if st.button("Send Feedback", key="footer_feedback", use_container_width=True):
+        feedback_dialog()
