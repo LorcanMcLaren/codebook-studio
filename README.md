@@ -1,6 +1,8 @@
 # CodeBook Studio
 
-[![DOI](https://zenodo.org/badge/758504276.svg)](https://doi.org/10.5281/zenodo.19185938)
+[![DOI](https://zenodo.org/badge/758504276.svg)](https://doi.org/10.5281/zenodo.19185938) [![License](https://img.shields.io/github/license/LorcanMcLaren/codebook-studio)](https://github.com/LorcanMcLaren/codebook-studio/blob/main/LICENSE)
+
+[![CodeBook Studio demo](assets/codebook-studio-demo.gif)](https://codebook.streamlit.app/)
 
 CodeBook Studio is a codebook-driven text annotation app for computational social science. Define an annotation task once — with sections, instructions, tooltips, and worked examples — then annotate in the browser and export everything you need for research reporting and LLM benchmarking in [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab).
 
