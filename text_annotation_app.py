@@ -8,6 +8,7 @@ import zipfile
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
+from pathlib import Path
 
 from utils.export import generate_latex_codebook, generate_markdown_codebook
 from utils.html_parser import parse_example_blocks, serialize_example_blocks
@@ -24,6 +25,34 @@ ANNOTATION_PANE_HEIGHT = 572
 EDITOR_PREVIEW_SECTION_HEIGHT = 360
 EDITOR_PREVIEW_SELECTOR_OFFSET = 46
 EDITOR_PREVIEW_TEXT_HEIGHT = EDITOR_PREVIEW_SECTION_HEIGHT + EDITOR_PREVIEW_SELECTOR_OFFSET
+APP_DIR = Path(__file__).resolve().parent
+DEMO_TASKS_DIR = APP_DIR / "demo_tasks"
+DEMO_TASKS = {
+    "policy_sentiment": {
+        "slug": "policy_sentiment",
+        "title": "Policy Sentiment",
+        "context": "Parliamentary speech and policy commentary",
+        "description": "Code policy support, criticism, and mixed evaluations in short political texts.",
+        "summary": "Checkbox, dropdown, Likert, and evidence textbox",
+        "rows": 6,
+    },
+    "migration_framing": {
+        "slug": "migration_framing",
+        "title": "Migration Framing",
+        "context": "News leads and campaign messaging",
+        "description": "Identify humanitarian, economic, and security frames in migration coverage.",
+        "summary": "Multi-label checkboxes, dominant frame dropdown, and evidence textbox",
+        "rows": 6,
+    },
+    "campaign_rhetoric": {
+        "slug": "campaign_rhetoric",
+        "title": "Campaign Rhetoric",
+        "context": "Stump speeches and campaign statements",
+        "description": "Explore populist cues, anti-elite language, incivility, and tone.",
+        "summary": "Checkboxes, incivility dropdown, Likert, and evidence textbox",
+        "rows": 6,
+    },
+}
 
 def render_header(home_action=None):
     # Global CSS — injected once per page render
@@ -177,6 +206,37 @@ def render_header(home_action=None):
             color: var(--cb-muted);
             line-height: 1.6;
             font-size: 0.95rem;
+        }
+
+        .cb-demo-intro {
+            color: var(--cb-muted);
+            line-height: 1.65;
+            font-size: 0.98rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .cb-demo-context {
+            color: var(--cb-accent);
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 0.45rem;
+        }
+
+        .cb-demo-copy {
+            color: var(--cb-muted);
+            line-height: 1.58;
+            font-size: 0.94rem;
+            min-height: 4.6rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .cb-demo-meta {
+            color: var(--cb-ink);
+            font-size: 0.8rem;
+            line-height: 1.45;
+            margin-bottom: 0.9rem;
         }
 
         .cb-session-notice {
@@ -1090,6 +1150,76 @@ def reset_working_session():
         st.session_state.pop(key, None)
 
     st.session_state.page = "landing"
+
+
+def load_demo_task(demo_key):
+    demo = DEMO_TASKS.get(demo_key)
+    if demo is None:
+        st.error("That demo task is not available.")
+        return
+
+    demo_dir = DEMO_TASKS_DIR / demo["slug"]
+    schema_path = demo_dir / "codebook.json"
+    data_path = demo_dir / "data.csv"
+
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        csv_bytes = data_path.read_bytes()
+        demo_df = pd.read_csv(io.BytesIO(csv_bytes))
+    except Exception as exc:
+        st.error(f"Could not load the demo task: {exc}")
+        return
+
+    uploaded_file = io.BytesIO(csv_bytes)
+    uploaded_file.name = data_path.name
+
+    reset_working_session()
+    st.session_state.custom_schema = schema
+    st.session_state.uploaded_file = uploaded_file
+    st.session_state.column_names = demo_df.columns.tolist()
+    st.session_state.data = demo_df
+    st.session_state.index = 1
+
+    st.session_state.data = process_data(st.session_state.uploaded_file, schema["text_column"])
+    last_annotated_row = find_last_annotated_row(
+        st.session_state.data,
+        st.session_state.custom_schema,
+    )
+    st.session_state.index = (
+        last_annotated_row + 1
+        if last_annotated_row < len(st.session_state.data)
+        else len(st.session_state.data)
+    )
+    st.session_state.page = "annotate"
+    queue_auto_save()
+    st.rerun()
+
+
+def render_demo_task_section(saved_data):
+    st.markdown("#### Try a demo task")
+    st.markdown(
+        '<div class="cb-demo-intro">Load a sample dataset and matching CodeBook drawn from familiar '
+        "computational social science and political communication workflows. You can annotate a few texts, inspect "
+        "or edit the CodeBook, and export results before preparing your own materials.</div>",
+        unsafe_allow_html=True,
+    )
+
+    if saved_data:
+        st.caption("Loading a demo starts a fresh in-browser working session and replaces the currently saved draft.")
+
+    demo_columns = st.columns(len(DEMO_TASKS), gap="medium")
+    for column, (demo_key, demo) in zip(demo_columns, DEMO_TASKS.items()):
+        with column:
+            with st.container(border=True):
+                st.markdown(f'<div class="cb-demo-context">{demo["context"]}</div>', unsafe_allow_html=True)
+                st.markdown(f"##### {demo['title']}")
+                st.markdown(f'<div class="cb-demo-copy">{demo["description"]}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="cb-demo-meta">{demo["summary"]}<br>{demo["rows"]} sample texts</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("Try this demo", key=f"demo_{demo_key}", use_container_width=True):
+                    load_demo_task(demo_key)
 
 
 @st.dialog("Start Fresh")
@@ -2280,6 +2410,9 @@ def landing_page():
                         st.rerun()
                 else:
                     st.caption("Start with a CSV file. You can attach a CodeBook after the upload step.")
+
+    st.write("")
+    render_demo_task_section(saved_data)
 
     flush_queued_auto_save()
 

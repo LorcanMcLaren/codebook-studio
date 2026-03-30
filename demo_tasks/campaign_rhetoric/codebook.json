@@ -1,0 +1,65 @@
+{
+  "header_column": "title",
+  "text_column": "text",
+  "section_1": {
+    "section_name": "Populist Cues",
+    "section_instruction": "Mark whether the text invokes common features of populist political rhetoric.",
+    "annotations": {
+      "annotation_1": {
+        "name": "People-centrism",
+        "type": "checkbox",
+        "tooltip": "Tick if the text appeals to ordinary people, hard-working citizens, or the public as a virtuous collective.",
+        "example": "Text:\n\"Ordinary families keep paying the price while insiders protect themselves.\"\n\nResponse:\n{\"response\": true}"
+      },
+      "annotation_2": {
+        "name": "Anti-elite cue",
+        "type": "checkbox",
+        "tooltip": "Tick if the text criticizes political elites, party insiders, lobbyists, or distant decision-makers.",
+        "example": "Text:\n\"The political class has ignored this issue for years.\"\n\nResponse:\n{\"response\": true}"
+      },
+      "annotation_3": {
+        "name": "Out-group blame",
+        "type": "checkbox",
+        "tooltip": "Tick if the text blames an external group, outsider, or constructed enemy for political problems.",
+        "example": "Text:\n\"Local communities are left to deal with the consequences of illegal crossings.\"\n\nResponse:\n{\"response\": true}"
+      }
+    }
+  },
+  "section_2": {
+    "section_name": "Tone",
+    "section_instruction": "Assess how confrontational the language is overall.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Incivility",
+        "type": "dropdown",
+        "tooltip": "Choose none, mild, or strong depending on how insulting, contemptuous, or derogatory the wording is.",
+        "example": "Text:\n\"This budget is another polished press event: plenty of applause for ministers, nothing serious for workers.\"\n\nResponse:\n{\"response\": \"mild\"}",
+        "options": [
+          "none",
+          "mild",
+          "strong"
+        ]
+      },
+      "annotation_2": {
+        "name": "Emotional intensity",
+        "type": "likert",
+        "tooltip": "Rate how emotionally charged the wording is overall, where 1 is very calm and 5 is very heated.",
+        "example": "Text:\n\"We can disagree on policy without treating opponents as enemies.\"\n\nResponse:\n{\"response\": 1}",
+        "min_value": 1,
+        "max_value": 5
+      }
+    }
+  },
+  "section_3": {
+    "section_name": "Evidence",
+    "section_instruction": "Capture the wording that best supports your coding decision.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Evidence",
+        "type": "textbox",
+        "tooltip": "Provide a short phrase or sentence from the text that best supports your coding decision.",
+        "example": "Text:\n\"People in this district deserve shorter waiting lists and a government that listens before lobbyists get their private meeting.\"\n\nResponse:\n{\"response\": \"before lobbyists get their private meeting\"}"
+      }
+    }
+  }
+}

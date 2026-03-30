@@ -21,8 +21,10 @@ def parse_example_blocks(example_text, annotation_type=None):
     Returns:
         list[dict]: [{"text": str, "response": Any, "label": str}]
     """
-    if not example_text or not example_text.strip():
+    if not example_text or not str(example_text).strip():
         return []
+
+    example_text = _normalize_example_text(str(example_text))
 
     if "Text:" in example_text and "Response:" in example_text:
         return _parse_blocks_format_b(example_text, annotation_type)
@@ -36,6 +38,25 @@ def parse_example_blocks(example_text, annotation_type=None):
             "label": "Example",
         }
     ]
+
+
+def _normalize_example_text(example_text):
+    """Normalize structured examples that were double-escaped in JSON."""
+    if "Text:" not in example_text or "Response:" not in example_text:
+        return example_text
+
+    if "\\n" not in example_text and '\\"' not in example_text and "\\t" not in example_text:
+        return example_text
+
+    try:
+        normalized = bytes(example_text, "utf-8").decode("unicode_escape")
+    except UnicodeDecodeError:
+        return example_text
+
+    if "Text:" in normalized and "Response:" in normalized:
+        return normalized
+
+    return example_text
 
 
 def parse_examples(example_text, annotation_type=None):

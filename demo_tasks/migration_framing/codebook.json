@@ -1,0 +1,59 @@
+{
+  "header_column": "title",
+  "text_column": "text",
+  "section_1": {
+    "section_name": "Frame Indicators",
+    "section_instruction": "Identify which familiar policy frames appear in the text. More than one frame can be present at the same time.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Humanitarian frame",
+        "type": "checkbox",
+        "tooltip": "Tick if the text emphasizes protection, vulnerability, dignity, rights, or humanitarian obligation.",
+        "example": "Text:\n\"Aid groups said the reception system must protect families from further harm.\"\n\nResponse:\n{\"response\": true}"
+      },
+      "annotation_2": {
+        "name": "Economic frame",
+        "type": "checkbox",
+        "tooltip": "Tick if the text emphasizes labour supply, costs, fiscal pressure, or economic contribution.",
+        "example": "Text:\n\"Employers argued that visa restrictions are worsening labour shortages.\"\n\nResponse:\n{\"response\": true}"
+      },
+      "annotation_3": {
+        "name": "Security frame",
+        "type": "checkbox",
+        "tooltip": "Tick if the text emphasizes crime, trafficking, border control, disorder, or public safety.",
+        "example": "Text:\n\"Ministers said stronger border checks were needed to disrupt trafficking networks.\"\n\nResponse:\n{\"response\": true}"
+      }
+    }
+  },
+  "section_2": {
+    "section_name": "Dominant Frame",
+    "section_instruction": "Choose the main frame that organizes the text overall.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Primary frame",
+        "type": "dropdown",
+        "tooltip": "Choose the dominant frame. Use mixed if multiple frames are equally prominent, and no clear frame if none stand out.",
+        "example": "Text:\n\"The candidate linked migration to crime while also warning about welfare costs.\"\n\nResponse:\n{\"response\": \"mixed\"}",
+        "options": [
+          "humanitarian",
+          "economic",
+          "security",
+          "mixed",
+          "no clear frame"
+        ]
+      }
+    }
+  },
+  "section_3": {
+    "section_name": "Evidence",
+    "section_instruction": "Capture the wording that best supports your frame judgement.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Evidence",
+        "type": "textbox",
+        "tooltip": "Provide a short phrase or sentence from the text that best supports your coding decision.",
+        "example": "Text:\n\"Volunteers described the programme as a humane response that helps families rebuild their lives.\"\n\nResponse:\n{\"response\": \"a humane response that helps families rebuild their lives\"}"
+      }
+    }
+  }
+}

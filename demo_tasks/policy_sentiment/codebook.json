@@ -1,0 +1,60 @@
+{
+  "header_column": "title",
+  "text_column": "text",
+  "section_1": {
+    "section_name": "Explicit Evaluation",
+    "section_instruction": "Read the short text and assess whether it expresses an evaluative stance toward a public policy, proposal, or political decision.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Explicit evaluation",
+        "type": "checkbox",
+        "tooltip": "Tick this box if the text clearly expresses approval, criticism, support, concern, or another evaluative stance toward the policy or decision. Leave it unticked if the text is mainly descriptive or procedural.",
+        "example": "Text:\n\"The housing reform is overdue and will make everyday life easier for renters.\"\n\nResponse:\n{\"response\": true}"
+      }
+    }
+  },
+  "section_2": {
+    "section_name": "Direction",
+    "section_instruction": "If the text expresses a stance, identify whether the overall direction is positive, negative, or mixed.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Direction",
+        "type": "dropdown",
+        "tooltip": "Choose positive, negative, or mixed. Use no clear sentiment only when the text does not convey an evaluative stance.",
+        "example": "Text:\n\"The subsidy could help households, but the funding model is fragile.\"\n\nResponse:\n{\"response\": \"mixed\"}",
+        "options": [
+          "positive",
+          "negative",
+          "mixed",
+          "no clear sentiment"
+        ]
+      }
+    }
+  },
+  "section_3": {
+    "section_name": "Intensity",
+    "section_instruction": "Rate the overall sentiment on a 5-point scale.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Intensity",
+        "type": "likert",
+        "tooltip": "Use 1 for strongly negative, 2 for somewhat negative, 3 for mixed or neutral, 4 for somewhat positive, and 5 for strongly positive.",
+        "example": "Text:\n\"The bill is expensive, punitive, and badly designed.\"\n\nResponse:\n{\"response\": 1}",
+        "min_value": 1,
+        "max_value": 5
+      }
+    }
+  },
+  "section_4": {
+    "section_name": "Evidence",
+    "section_instruction": "Quote the brief phrase that best supports your judgement.",
+    "annotations": {
+      "annotation_1": {
+        "name": "Evidence",
+        "type": "textbox",
+        "tooltip": "Provide a short phrase or sentence from the text that best supports your sentiment judgement.",
+        "example": "Text:\n\"The package is a sensible reform, although the rollout still leaves rural schools underfunded.\"\n\nResponse:\n{\"response\": \"sensible reform\"}"
+      }
+    }
+  }
+}
