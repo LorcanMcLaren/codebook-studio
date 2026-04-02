@@ -1,13 +1,53 @@
-name: Keep Alive
+name: Keep Streamlit Awake
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "17 */4 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: keep-streamlit-awake
+  cancel-in-progress: true
+
 jobs:
-  ping:
+  wake:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
     steps:
-      - name: Ping Streamlit app
-        run: curl -s -o /dev/null -w "%{http_code}" https://codebook.streamlit.app/
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-chromedriver: true
+
+      - name: Install wake script dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-keep-alive.txt
+
+      - name: Wake Streamlit app
+        env:
+          STREAMLIT_APP_URL: https://codebook.streamlit.app/
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
+          CHROMEDRIVER: ${{ steps.chrome.outputs.chromedriver-path }}
+        run: python scripts/wake_streamlit_app.py
+
+      - name: Upload wake diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keep-streamlit-awake-debug
+          path: artifacts/
+          if-no-files-found: ignore
