@@ -25,8 +25,15 @@ SLEEP_MARKERS = (
 
 AWAKE_SELECTORS = (
     ".stApp",
+    "[data-testid='stApp']",
     "[data-testid='stAppViewContainer']",
     "[data-testid='stMain']",
+    "[data-testid='stMainBlockContainer']",
+)
+
+APP_IFRAME_SELECTORS = (
+    "iframe[title='streamlitApp']",
+    "iframe[src*='/~/+/']",
 )
 
 
@@ -75,16 +82,77 @@ def get_body_text(driver: webdriver.Chrome) -> str:
     return elements[0].text.strip().lower()
 
 
-def find_visible_wake_button(driver: webdriver.Chrome):
+def find_visible_app_iframe(driver: webdriver.Chrome):
+    for selector in APP_IFRAME_SELECTORS:
+        for iframe in driver.find_elements(By.CSS_SELECTOR, selector):
+            if iframe.is_displayed():
+                return iframe
+    return None
+
+
+def frame_body_text(driver: webdriver.Chrome) -> str:
+    iframe = find_visible_app_iframe(driver)
+    if iframe is None:
+        return ""
+
+    try:
+        driver.switch_to.frame(iframe)
+        return get_body_text(driver)
+    except WebDriverException:
+        return ""
+    finally:
+        driver.switch_to.default_content()
+
+
+def find_visible_wake_button_in_current_context(driver: webdriver.Chrome):
     for button in driver.find_elements(By.XPATH, WAKE_BUTTON_XPATH):
         if button.is_displayed():
             return button
     return None
 
 
+def has_visible_wake_button(driver: webdriver.Chrome) -> bool:
+    if find_visible_wake_button_in_current_context(driver) is not None:
+        return True
+
+    iframe = find_visible_app_iframe(driver)
+    if iframe is None:
+        return False
+
+    try:
+        driver.switch_to.frame(iframe)
+        return find_visible_wake_button_in_current_context(driver) is not None
+    except WebDriverException:
+        return False
+    finally:
+        driver.switch_to.default_content()
+
+
+def click_wake_button(driver: webdriver.Chrome) -> bool:
+    button = find_visible_wake_button_in_current_context(driver)
+    if button is not None:
+        driver.execute_script("arguments[0].click();", button)
+        return True
+
+    iframe = find_visible_app_iframe(driver)
+    if iframe is None:
+        return False
+
+    try:
+        driver.switch_to.frame(iframe)
+        button = find_visible_wake_button_in_current_context(driver)
+        if button is None:
+            return False
+        driver.execute_script("arguments[0].click();", button)
+        return True
+    finally:
+        driver.switch_to.default_content()
+
+
 def page_has_sleep_prompt(driver: webdriver.Chrome) -> bool:
     body_text = get_body_text(driver)
-    return any(marker in body_text for marker in SLEEP_MARKERS)
+    frame_text = frame_body_text(driver)
+    return any(marker in body_text or marker in frame_text for marker in SLEEP_MARKERS)
 
 
 def page_looks_awake(driver: webdriver.Chrome) -> bool:
@@ -92,6 +160,24 @@ def page_looks_awake(driver: webdriver.Chrome) -> bool:
         elements = driver.find_elements(By.CSS_SELECTOR, selector)
         if any(element.is_displayed() for element in elements):
             return True
+
+    iframe = find_visible_app_iframe(driver)
+    if iframe is None:
+        return False
+
+    try:
+        driver.switch_to.frame(iframe)
+        for selector in AWAKE_SELECTORS:
+            elements = driver.find_elements(By.CSS_SELECTOR, selector)
+            if any(element.is_displayed() for element in elements):
+                return True
+
+        return bool(get_body_text(driver))
+    except WebDriverException:
+        return False
+    finally:
+        driver.switch_to.default_content()
+
     return False
 
 
@@ -103,7 +189,7 @@ def wait_for_initial_state(driver: webdriver.Chrome) -> str:
         except WebDriverException:
             ready_state = "unknown"
 
-        if find_visible_wake_button(driver) or page_has_sleep_prompt(driver):
+        if has_visible_wake_button(driver) or page_has_sleep_prompt(driver):
             return "sleeping"
 
         if ready_state == "complete" and page_looks_awake(driver):
@@ -117,14 +203,14 @@ def wait_for_initial_state(driver: webdriver.Chrome) -> str:
 def wait_until_awake(driver: webdriver.Chrome) -> bool:
     deadline = time.time() + WAKE_TIMEOUT_SECONDS
     while time.time() < deadline:
-        button = find_visible_wake_button(driver)
+        button_visible = has_visible_wake_button(driver)
         sleeping = page_has_sleep_prompt(driver)
         awake = page_looks_awake(driver)
 
         if awake and not sleeping:
             return True
 
-        if button is None and not sleeping:
+        if not button_visible and not sleeping:
             return True
 
         time.sleep(3)
@@ -170,12 +256,10 @@ def run_attempt(attempt: int) -> bool:
             return True
 
         if state == "sleeping":
-            button = find_visible_wake_button(driver)
-            if button is None:
+            if not click_wake_button(driver):
                 raise RuntimeError("Detected the sleeping page but could not find a clickable wake button.")
 
             log("Wake button found. Clicking it now.")
-            driver.execute_script("arguments[0].click();", button)
 
             if wait_until_awake(driver):
                 log("Wake flow completed successfully.")
