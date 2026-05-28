@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import copy
 import json
 import io
 import base64
@@ -15,17 +16,71 @@ from pathlib import Path
 from utils.export import generate_latex_codebook, generate_markdown_codebook
 from utils.html_parser import parse_example_blocks, serialize_example_blocks
 from utils.prompt_preview import render_prompt_preview_page
-from utils.persistence import (
-    load_state_if_available,
-    restore_session_state,
-    clear_save,
-    auto_save_if_needed,
-    record_version,
-    delete_version,
-    get_version,
-    restore_version,
-)
+from utils import persistence as persistence_utils
 from utils.codebook_diff import diff_schemas, group_by_section, field_label
+
+load_state_if_available = persistence_utils.load_state_if_available
+restore_session_state = persistence_utils.restore_session_state
+clear_save = persistence_utils.clear_save
+auto_save_if_needed = persistence_utils.auto_save_if_needed
+
+
+def record_version(label=None):
+    """Append a CodeBook version, with a local fallback for older deployments."""
+    if hasattr(persistence_utils, "record_version"):
+        return persistence_utils.record_version(label)
+
+    schema = st.session_state.get("custom_schema")
+    if not schema:
+        return None
+
+    now = datetime.now(timezone.utc)
+    snapshot = {
+        "id": "v_" + now.strftime("%Y%m%dT%H%M%S%f"),
+        "saved_at": now.isoformat(),
+        "label": (label or "").strip(),
+        "schema": copy.deepcopy(schema),
+    }
+
+    versions = list(st.session_state.get("codebook_versions", []))
+    versions.append(snapshot)
+    st.session_state.codebook_versions = versions
+    return snapshot
+
+
+def delete_version(version_id):
+    """Remove a saved CodeBook version."""
+    if hasattr(persistence_utils, "delete_version"):
+        return persistence_utils.delete_version(version_id)
+
+    st.session_state.codebook_versions = [
+        v for v in st.session_state.get("codebook_versions", [])
+        if v.get("id") != version_id
+    ]
+    return None
+
+
+def get_version(version_id):
+    """Return a saved CodeBook version by id."""
+    if hasattr(persistence_utils, "get_version"):
+        return persistence_utils.get_version(version_id)
+
+    for version in st.session_state.get("codebook_versions", []):
+        if version.get("id") == version_id:
+            return version
+    return None
+
+
+def restore_version(version_id):
+    """Restore a saved CodeBook version."""
+    if hasattr(persistence_utils, "restore_version"):
+        return persistence_utils.restore_version(version_id)
+
+    version = get_version(version_id)
+    if not version:
+        return False
+    st.session_state.custom_schema = copy.deepcopy(version["schema"])
+    return True
 
 DOCUMENT_PANE_HEIGHT = 620
 ANNOTATION_PANE_HEIGHT = 572
