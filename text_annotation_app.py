@@ -581,6 +581,37 @@ def render_header(home_action=None):
             margin: 0.12rem 0 0.24rem 0;
         }
 
+        .cb-metadata-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0 14px 0;
+        }
+
+        .cb-metadata-chip {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+            background: #f5f3ee;
+            border: 1px solid #e7e5e0;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.82rem;
+            line-height: 1.3;
+        }
+
+        .cb-metadata-key {
+            color: #8a837b;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .cb-metadata-value {
+            color: var(--cb-ink);
+        }
+
         p.cb-secondary-copy,
         [data-testid="stMarkdownContainer"] p.cb-secondary-copy {
             color: #8a837b;
@@ -1352,9 +1383,53 @@ def feedback_dialog():
             st.error("Something went wrong. Please try again later.")
 
 
+def _resolve_item_title(index, data):
+    """Return the title string for the current item, or None when no header column is set."""
+    title_column = st.session_state.custom_schema.get("header_column") or ""
+    if not title_column or title_column not in data.columns:
+        return None
+    value = data.iloc[index][title_column]
+    if pd.isna(value):
+        return None
+    return str(value)
+
+
+def _resolve_metadata_pairs(index, data):
+    """Return a list of (column, value) pairs for the current item's metadata columns."""
+    columns = st.session_state.custom_schema.get("metadata_columns") or []
+    if not columns:
+        return []
+    row = data.iloc[index]
+    pairs = []
+    for column in columns:
+        if column not in data.columns:
+            continue
+        value = row[column]
+        if pd.isna(value):
+            continue
+        pairs.append((column, str(value)))
+    return pairs
+
+
+def render_metadata_strip(pairs):
+    """Render a chip strip of label : value metadata pairs."""
+    if not pairs:
+        return
+    chips = "".join(
+        '<span class="cb-metadata-chip">'
+        f'<span class="cb-metadata-key">{html_module.escape(label)}</span>'
+        f'<span class="cb-metadata-value">{html_module.escape(value)}</span>'
+        '</span>'
+        for label, value in pairs
+    )
+    st.markdown(
+        f'<div class="cb-metadata-strip">{chips}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def render_annotation_toolbar(index, data, sections):
-    title_column = st.session_state.custom_schema["header_column"]
-    current_title = data.iloc[index][title_column]
+    current_title = _resolve_item_title(index, data)
     completed_sections = get_completed_sections(
         st.session_state.custom_schema,
         sections,
@@ -1371,12 +1446,19 @@ def render_annotation_toolbar(index, data, sections):
         title_col, progress_col, nav_col = st.columns([0.42, 0.3, 0.28], gap="medium")
 
         with title_col:
-            safe_title = html_module.escape(str(current_title))
-            st.markdown(
-                f'<p class="cb-toolbar-inline"><span class="cb-toolbar-inline-meta">Item</span> '
-                f'{safe_title}</p>',
-                unsafe_allow_html=True,
-            )
+            if current_title is not None:
+                safe_title = html_module.escape(current_title)
+                st.markdown(
+                    f'<p class="cb-toolbar-inline"><span class="cb-toolbar-inline-meta">Item</span> '
+                    f'{safe_title}</p>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<p class="cb-toolbar-inline"><span class="cb-toolbar-inline-meta">Item</span> '
+                    f'{current_item}</p>',
+                    unsafe_allow_html=True,
+                )
             st.markdown(
                 f'<p class="cb-toolbar-progress">{completed_sections}/{len(sections)} sections touched</p>',
                 unsafe_allow_html=True,
@@ -1446,20 +1528,39 @@ def build_codebook_bundle(schema):
     return bundle_buffer.getvalue()
 
 
-def get_editor_preview_sample(header_column, text_column):
+def get_editor_preview_sample(header_column, text_column, metadata_columns=None):
     sample_title = "Sample item"
     sample_text = "Upload data to preview how annotators will read and label a real text."
     sample_index = 1
     total_items = 1
+    metadata_columns = metadata_columns or []
+
+    def _resolve_title(row):
+        if not header_column:
+            return None
+        value = row.get(header_column)
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        return str(value)
+
+    def _resolve_metadata(row):
+        pairs = []
+        for column in metadata_columns:
+            value = row.get(column)
+            if value is None or (isinstance(value, float) and pd.isna(value)):
+                continue
+            pairs.append((column, str(value)))
+        return pairs
 
     data = st.session_state.get("data")
     if data is not None and len(data) > 0:
         sample_row = data.iloc[0]
         return (
-            str(sample_row.get(header_column, sample_title)),
+            _resolve_title(sample_row) if header_column else None,
             str(sample_row.get(text_column, sample_text)),
             sample_index,
             len(data),
+            _resolve_metadata(sample_row),
         )
 
     uploaded_file = st.session_state.get("uploaded_file")
@@ -1470,13 +1571,14 @@ def get_editor_preview_sample(header_column, text_column):
         if not sample_df.empty:
             sample_row = sample_df.iloc[0]
             return (
-                str(sample_row.get(header_column, sample_title)),
+                _resolve_title(sample_row) if header_column else None,
                 str(sample_row.get(text_column, sample_text)),
                 sample_index,
                 total_items,
+                _resolve_metadata(sample_row),
             )
 
-    return sample_title, sample_text, sample_index, total_items
+    return sample_title if header_column else None, sample_text, sample_index, total_items, []
 
 
 def render_editor_preview_annotation(annotation, key, condition_summary=""):
@@ -1925,12 +2027,15 @@ def sync_schema_editor_state_from_widgets(schema):
                 )
 
 
-def render_schema_workflow_preview(schema, header_column, text_column):
+def render_schema_workflow_preview(schema, header_column, text_column, metadata_columns=None):
     sections = get_schema_sections(schema)
     if not sections:
         return
 
-    sample_title, sample_text, sample_index, total_items = get_editor_preview_sample(header_column, text_column)
+    metadata_columns = metadata_columns or schema.get("metadata_columns") or []
+    sample_title, sample_text, sample_index, total_items, metadata_pairs = get_editor_preview_sample(
+        header_column, text_column, metadata_columns
+    )
     section_keys = [section_key for section_key, _ in sections]
     option_labels = {
         section_key: section_content.get("section_name") or f"Section {idx + 1}"
@@ -1954,9 +2059,10 @@ def render_schema_workflow_preview(schema, header_column, text_column):
         title_col, progress_col, nav_col = st.columns([0.42, 0.3, 0.28], gap="medium")
 
         with title_col:
+            title_text = html_module.escape(sample_title) if sample_title else str(sample_index)
             st.markdown(
                 f'<p class="cb-toolbar-inline"><span class="cb-toolbar-inline-meta">Item</span> '
-                f'{html_module.escape(sample_title)}</p>',
+                f'{title_text}</p>',
                 unsafe_allow_html=True,
             )
             st.markdown(
@@ -1984,6 +2090,8 @@ def render_schema_workflow_preview(schema, header_column, text_column):
                 st.button("Prev", key="preview_previous", use_container_width=True, disabled=True)
             with button_col2:
                 st.button("Next", key="preview_next", use_container_width=True, disabled=True)
+
+    render_metadata_strip(metadata_pairs)
 
     preview_left, preview_right = st.columns([1.02, 0.98], gap="medium")
 
@@ -2316,7 +2424,11 @@ def annotation_page():
     clear_inactive_annotation_values(st.session_state.custom_schema, sections, st.session_state.annotations, index)
 
     render_annotation_toolbar(index, data, sections)
-    st.write("")
+    metadata_pairs = _resolve_metadata_pairs(index, data)
+    if metadata_pairs:
+        render_metadata_strip(metadata_pairs)
+    else:
+        st.write("")
 
     left_column, right_column = st.columns([1.04, 0.96], gap="medium")
     with left_column:
@@ -2510,17 +2622,28 @@ def schema_creation_page():
         )
         st.divider()
 
-        header_column_default = st.session_state.custom_schema.get("header_column", "")
+        header_column_default = st.session_state.custom_schema.get("header_column", "") or ""
         text_column_default = st.session_state.custom_schema.get("text_column", "")
-        header_column = st.selectbox(
-            "Header column",
-            st.session_state.column_names,
-            index=st.session_state.column_names.index(header_column_default)
-            if header_column_default in st.session_state.column_names
-            else 0,
-            key="header_column_selector",
-            help="The column used as a title or identifier for each text (displayed above the text during annotation)",
+        metadata_columns_default = list(
+            st.session_state.custom_schema.get("metadata_columns", []) or []
         )
+
+        HEADER_NONE_LABEL = "(no title — show item number only)"
+        header_options = [HEADER_NONE_LABEL] + list(st.session_state.column_names)
+        if header_column_default in st.session_state.column_names:
+            header_index = header_options.index(header_column_default)
+        else:
+            header_index = 0
+
+        header_choice = st.selectbox(
+            "Header column",
+            header_options,
+            index=header_index,
+            key="header_column_selector",
+            help="Optional. The column used as a title or identifier for each text (displayed above the document during annotation). Choose the no-title option to show only the item number.",
+        )
+        header_column = "" if header_choice == HEADER_NONE_LABEL else header_choice
+
         text_column = st.selectbox(
             "Text column",
             st.session_state.column_names,
@@ -2529,6 +2652,18 @@ def schema_creation_page():
             else 0,
             key="text_column_selector",
             help="The column containing the main text content that annotators will read and annotate",
+        )
+
+        metadata_options = [
+            col for col in st.session_state.column_names
+            if col != header_column and col != text_column
+        ]
+        metadata_columns = st.multiselect(
+            "Additional metadata columns",
+            metadata_options,
+            default=[col for col in metadata_columns_default if col in metadata_options],
+            key="metadata_columns_selector",
+            help="Optional. Extra CSV columns shown as label : value pairs above the document text during annotation (e.g. speaker, date, debate title).",
         )
 
     # Initialize or update the session state for codebook creation
@@ -2549,6 +2684,7 @@ def schema_creation_page():
     if st.session_state.custom_schema:
         st.session_state.custom_schema["header_column"] = header_column
         st.session_state.custom_schema["text_column"] = text_column
+        st.session_state.custom_schema["metadata_columns"] = list(metadata_columns)
         sync_schema_editor_state_from_widgets(st.session_state.custom_schema)
 
     def add_section():
@@ -2607,7 +2743,9 @@ def schema_creation_page():
         st.session_state.annotations_count[section_key] = len(annotation_keys)
         st.rerun()
 
-    render_schema_workflow_preview(st.session_state.custom_schema, header_column, text_column)
+    render_schema_workflow_preview(
+        st.session_state.custom_schema, header_column, text_column, metadata_columns
+    )
 
     _, builder_column, _ = st.columns([0.08, 0.84, 0.08])
     with builder_column:
@@ -3458,7 +3596,7 @@ def _render_field_change(change, annotation=None):
         if isinstance(annotation, dict):
             annotation_type = annotation.get("type")
         _render_example_change(label, old, new, annotation_type=annotation_type)
-    elif field == "options":
+    elif isinstance(old, list) or isinstance(new, list):
         _render_list_diff(label, old, new)
     elif isinstance(old, str) or isinstance(new, str) or old is None or new is None:
         _render_inline_text_diff(label, old, new)

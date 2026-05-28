@@ -14,7 +14,7 @@ field change; reordering sections will surface as add+remove.
 
 from __future__ import annotations
 
-TOP_LEVEL_FIELDS = ("header_column", "text_column")
+TOP_LEVEL_FIELDS = ("header_column", "text_column", "metadata_columns")
 
 SECTION_META_FIELDS = ("section_name", "section_instruction")
 
@@ -32,6 +32,7 @@ ANNOTATION_FIELDS = (
 FIELD_LABELS = {
     "header_column": "Header column",
     "text_column": "Text column",
+    "metadata_columns": "Metadata columns",
     "section_name": "Section name",
     "section_instruction": "Instruction",
     "name": "Name",
