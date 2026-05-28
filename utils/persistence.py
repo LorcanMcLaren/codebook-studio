@@ -1,5 +1,6 @@
 import json
 import hashlib
+import copy
 from io import StringIO
 from datetime import datetime, timezone
 
@@ -9,7 +10,7 @@ import pandas as pd
 from streamlit_js_eval import streamlit_js_eval
 
 STORAGE_KEY = "codebook_studio_save"
-SAVE_VERSION = 1
+SAVE_VERSION = 2
 MAX_SAVE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB warning threshold
 
 
@@ -53,10 +54,24 @@ def load_state_if_available():
     except (json.JSONDecodeError, TypeError):
         return {'_available': available, 'data': {}}
 
-    if not isinstance(data, dict) or data.get('version') != SAVE_VERSION:
+    if not isinstance(data, dict):
+        return {'_available': available, 'data': {}}
+
+    saved_version = data.get('version')
+    if saved_version == 1:
+        data = _migrate_v1_to_v2(data)
+    elif saved_version != SAVE_VERSION:
         return {'_available': available, 'data': {}}
 
     return {'_available': available, 'data': data}
+
+
+def _migrate_v1_to_v2(data):
+    """v1 saves had no codebook_versions array; everything else is unchanged."""
+    migrated = dict(data)
+    migrated["version"] = SAVE_VERSION
+    migrated.setdefault("codebook_versions", [])
+    return migrated
 
 
 def save_state():
@@ -101,6 +116,7 @@ def restore_session_state(state):
     st.session_state.index = state.get("index", 1)
     st.session_state.column_names = state.get("column_names", [])
     st.session_state.annotations_count = state.get("annotations_count", {})
+    st.session_state.codebook_versions = state.get("codebook_versions", [])
     st.session_state._has_active_save = True
     st.session_state._last_save_hash = _state_hash(state)
 
@@ -205,9 +221,62 @@ def _serialize_state():
         "index": st.session_state.get("index", 1),
         "column_names": st.session_state.get("column_names", []),
         "annotations_count": st.session_state.get("annotations_count", {}),
+        "codebook_versions": st.session_state.get("codebook_versions", []),
         "page": st.session_state.get("page", "landing"),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def record_version(label=None):
+    """Append a snapshot of the current codebook to session_state.codebook_versions.
+
+    The caller is responsible for triggering persistence (queue_auto_save + rerun)
+    so the components.html save can flush on the next render.
+    """
+    schema = st.session_state.get("custom_schema")
+    if not schema:
+        return None
+
+    now = datetime.now(timezone.utc)
+    snapshot = {
+        "id": "v_" + now.strftime("%Y%m%dT%H%M%S%f"),
+        "saved_at": now.isoformat(),
+        "label": (label or "").strip(),
+        "schema": copy.deepcopy(schema),
+    }
+
+    versions = list(st.session_state.get("codebook_versions", []))
+    versions.append(snapshot)
+    st.session_state.codebook_versions = versions
+    return snapshot
+
+
+def delete_version(version_id):
+    """Remove a saved version by id. Caller persists via queue_auto_save + rerun."""
+    versions = [
+        v for v in st.session_state.get("codebook_versions", [])
+        if v.get("id") != version_id
+    ]
+    st.session_state.codebook_versions = versions
+
+
+def get_version(version_id):
+    for v in st.session_state.get("codebook_versions", []):
+        if v.get("id") == version_id:
+            return v
+    return None
+
+
+def restore_version(version_id):
+    """Replace the live codebook with a saved snapshot; keep the version list intact.
+
+    Caller persists via queue_auto_save + rerun.
+    """
+    version = get_version(version_id)
+    if not version:
+        return False
+    st.session_state.custom_schema = copy.deepcopy(version["schema"])
+    return True
 
 
 def _state_hash(state):

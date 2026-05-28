@@ -4,10 +4,12 @@ import json
 import io
 import base64
 import html as html_module
+import re
 import zipfile
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from utils.export import generate_latex_codebook, generate_markdown_codebook
@@ -18,7 +20,12 @@ from utils.persistence import (
     restore_session_state,
     clear_save,
     auto_save_if_needed,
+    record_version,
+    delete_version,
+    get_version,
+    restore_version,
 )
+from utils.codebook_diff import diff_schemas, group_by_section, field_label
 
 DOCUMENT_PANE_HEIGHT = 620
 ANNOTATION_PANE_HEIGHT = 572
@@ -1145,6 +1152,9 @@ def reset_working_session():
         "_pending_auto_save",
         "csv_uploader",
         "json_uploader",
+        "codebook_versions",
+        "_pending_compare_left",
+        "_pending_compare_right",
     ]
     for key in keys_to_clear:
         st.session_state.pop(key, None)
@@ -1706,8 +1716,19 @@ def initialize_example_editor_state(section_key, annotation_key, annotation):
     ]
 
     count_key = get_example_editor_count_key(section_key, annotation_key)
+    current_count = st.session_state.get(count_key)
+
+    if current_count is not None and current_count > len(blocks):
+        all_widgets_present = all(
+            get_example_text_widget_key(section_key, annotation_key, idx) in st.session_state
+            and get_example_response_widget_key(section_key, annotation_key, idx) in st.session_state
+            for idx in range(current_count)
+        )
+        if all_widgets_present:
+            return
+
     should_refresh = st.session_state.get(signature_key) != signature
-    should_refresh = should_refresh or st.session_state.get(count_key) != len(blocks)
+    should_refresh = should_refresh or current_count != len(blocks)
 
     if not should_refresh:
         for idx in range(len(blocks)):
@@ -1754,7 +1775,44 @@ def sanitize_example_editor_responses(section_key, annotation_key, annotation):
             st.session_state[response_key] = ""
 
 
+def _pending_example_delete_key(section_key, annotation_key):
+    return f"_pending_example_delete_{section_key}_{annotation_key}"
+
+
+def _apply_pending_example_delete(section_key, annotation_key, annotation):
+    """Run at the top of render_example_editor, before any widgets render.
+
+    Works from ``annotation["example"]`` — which ``sync_schema_editor_state_from_widgets``
+    just refreshed from the widget state — so we don't depend on the widget
+    session_state surviving the cross-rerun handoff. Clears widget keys and
+    resets editor metadata so ``initialize_example_editor_state`` rebuilds from
+    the updated ``annotation["example"]``.
+    """
+    pending_key = _pending_example_delete_key(section_key, annotation_key)
+    if pending_key not in st.session_state:
+        return
+    delete_idx = st.session_state.pop(pending_key)
+
+    annotation_type = annotation.get("type")
+    blocks = parse_example_blocks(annotation.get("example", ""), annotation_type)
+    if not (0 <= delete_idx < len(blocks)):
+        return
+
+    del blocks[delete_idx]
+
+    count_key = get_example_editor_count_key(section_key, annotation_key)
+    previous_count = st.session_state.get(count_key, 0)
+    for idx in range(max(previous_count, len(blocks) + 1)):
+        st.session_state.pop(get_example_text_widget_key(section_key, annotation_key, idx), None)
+        st.session_state.pop(get_example_response_widget_key(section_key, annotation_key, idx), None)
+
+    annotation["example"] = serialize_example_blocks(blocks, annotation_type)
+    st.session_state.pop(count_key, None)
+    st.session_state.pop(get_example_editor_signature_key(section_key, annotation_key), None)
+
+
 def render_example_editor(section_key, annotation_key, annotation):
+    _apply_pending_example_delete(section_key, annotation_key, annotation)
     initialize_example_editor_state(section_key, annotation_key, annotation)
     sanitize_example_editor_responses(section_key, annotation_key, annotation)
     valid_response_options = get_valid_example_response_options(annotation)
@@ -1796,15 +1854,15 @@ def render_example_editor(section_key, annotation_key, annotation):
                 )
 
             if st.button("Delete Example", key=f"delete_example_{section_key}_{annotation_key}_{idx}"):
-                updated_blocks = build_example_blocks_from_state(section_key, annotation_key)
-                del updated_blocks[idx]
-                set_example_editor_state(section_key, annotation_key, updated_blocks)
+                st.session_state[_pending_example_delete_key(section_key, annotation_key)] = idx
                 st.rerun()
 
     if st.button("Add Example", key=f"add_example_{section_key}_{annotation_key}"):
-        updated_blocks = build_example_blocks_from_state(section_key, annotation_key)
-        updated_blocks.append({"text": "", "response": ""})
-        set_example_editor_state(section_key, annotation_key, updated_blocks)
+        count_key = get_example_editor_count_key(section_key, annotation_key)
+        new_idx = st.session_state.get(count_key, 0)
+        st.session_state[count_key] = new_idx + 1
+        st.session_state[get_example_text_widget_key(section_key, annotation_key, new_idx)] = ""
+        st.session_state[get_example_response_widget_key(section_key, annotation_key, new_idx)] = ""
         st.rerun()
 
 
@@ -2881,6 +2939,25 @@ def schema_creation_page():
             add_section()
 
         st.divider()
+        version_count = len(st.session_state.get("codebook_versions", []))
+        version_col_left, version_col_right = st.columns(2)
+        with version_col_left:
+            if st.button("Save Version", use_container_width=True, help="Snapshot the current codebook so you can compare or restore it later"):
+                save_version_dialog()
+        with version_col_right:
+            history_label = (
+                f"Version History ({version_count})" if version_count else "Version History"
+            )
+            if st.button(
+                history_label,
+                use_container_width=True,
+                disabled=version_count == 0,
+                help="View, compare, and restore saved versions" if version_count else "Save a version first to enable history",
+            ):
+                st.session_state.page = "version_history"
+                queue_auto_save()
+                st.rerun()
+
         codebook_bundle = build_codebook_bundle(st.session_state.custom_schema)
         st.download_button(
             label="Download CodeBook",
@@ -2929,6 +3006,626 @@ def prompt_preview_page():
     flush_queued_auto_save()
 
 
+@st.dialog("Save CodeBook Version")
+def save_version_dialog():
+    st.markdown(
+        "Snapshot the current CodeBook so you can compare future edits against it or restore it later. "
+        "Versions are stored locally in your browser alongside your saved session."
+    )
+    label = st.text_input(
+        "Label (optional)",
+        placeholder="e.g. baseline, after pilot round 1",
+        key="_save_version_label",
+    )
+    if st.button("Save version", type="primary", use_container_width=True):
+        snapshot = record_version(label)
+        if snapshot is None:
+            st.warning("There is no CodeBook to save yet.")
+        else:
+            st.session_state.pop("_save_version_label", None)
+            queue_auto_save()
+            st.toast("Version saved.")
+            st.rerun()
+
+
+def _clear_schema_editor_widget_state():
+    """Drop cached editor widget values so a freshly-restored schema renders cleanly.
+
+    The schema editor mirrors section/annotation widget values back into
+    custom_schema on every render; if we restore a snapshot without clearing
+    these, stale widget values clobber the restored fields.
+    """
+    keys_to_drop = [
+        key for key in list(st.session_state.keys())
+        if isinstance(key, str) and key.startswith("section_")
+    ]
+    for key in keys_to_drop:
+        st.session_state.pop(key, None)
+    st.session_state.pop("editor_preview_section", None)
+
+
+@st.dialog("Restore Version")
+def confirm_restore_version_dialog(version_id):
+    version = get_version(version_id)
+    if not version:
+        st.warning("That version is no longer available.")
+        return
+
+    saved_at = _format_version_timestamp(version.get("saved_at"))
+    label = version.get("label") or "(no label)"
+    st.markdown(
+        f"Restoring **{label}** ({saved_at}) will replace your current CodeBook draft. "
+        "The saved versions list is unaffected — consider saving the current state first if you want to keep it."
+    )
+
+    if st.button("Restore", type="primary", use_container_width=True):
+        _clear_schema_editor_widget_state()
+        if restore_version(version_id):
+            queue_auto_save()
+            st.toast("Version restored.")
+            st.session_state.page = "create_schema"
+            st.rerun()
+
+
+def _format_version_timestamp(value):
+    if not value:
+        return ""
+    try:
+        return datetime.fromisoformat(value).astimezone().strftime("%Y-%m-%d %H:%M")
+    except (ValueError, TypeError):
+        return value
+
+
+def _set_pending_compare(left_id, right_id):
+    st.session_state._pending_compare_left = left_id
+    st.session_state._pending_compare_right = right_id
+    st.session_state.page = "version_compare"
+
+
+def version_history_page():
+    def go_to_editor():
+        st.session_state.page = "create_schema"
+        queue_auto_save()
+        st.rerun()
+
+    render_header(home_action=go_to_editor)
+
+    _, body, _ = st.columns([0.08, 0.84, 0.08])
+    with body:
+        st.header("CodeBook Version History")
+        st.markdown(
+            "Each saved version is a complete snapshot of your CodeBook at the moment you clicked **Save Version**. "
+            "Compare any two versions to see exactly what changed, or restore a version to roll back."
+        )
+
+        versions = list(st.session_state.get("codebook_versions", []))
+
+        if not versions:
+            st.info("No saved versions yet. Save a version from the CodeBook editor to get started.")
+            if st.button("Back to CodeBook Editor"):
+                go_to_editor()
+            return
+
+        sorted_versions = sorted(versions, key=lambda v: v.get("saved_at", ""), reverse=True)
+
+        st.divider()
+        st.markdown("**Compare two versions**")
+        select_options = [
+            (
+                v["id"],
+                f"{_format_version_timestamp(v.get('saved_at'))} — {v.get('label') or '(no label)'}",
+            )
+            for v in sorted_versions
+        ]
+        compare_col_left, compare_col_right, compare_col_button = st.columns([0.4, 0.4, 0.2])
+        with compare_col_left:
+            left = st.selectbox(
+                "Older",
+                options=[opt[0] for opt in select_options],
+                format_func=lambda vid: dict(select_options)[vid],
+                index=min(1, len(select_options) - 1),
+                key="_compare_select_left",
+            )
+        with compare_col_right:
+            right = st.selectbox(
+                "Newer",
+                options=[opt[0] for opt in select_options] + ["__current__"],
+                format_func=lambda vid: "Current draft" if vid == "__current__" else dict(select_options)[vid],
+                index=0,
+                key="_compare_select_right",
+            )
+        with compare_col_button:
+            st.markdown("&nbsp;", unsafe_allow_html=True)
+            if st.button("Compare", use_container_width=True, type="primary"):
+                if left == right:
+                    st.warning("Pick two different versions.")
+                else:
+                    _set_pending_compare(left, right)
+                    st.rerun()
+
+        st.divider()
+        st.markdown("**All versions**")
+
+        for version in sorted_versions:
+            with st.container(border=True):
+                row_meta, row_actions = st.columns([0.65, 0.35])
+                with row_meta:
+                    label = version.get("label") or "(no label)"
+                    st.markdown(f"**{label}**")
+                    st.caption(_format_version_timestamp(version.get("saved_at")))
+                with row_actions:
+                    a, b, c = st.columns(3)
+                    with a:
+                        if st.button("Compare to current", key=f"cmp_cur_{version['id']}", use_container_width=True):
+                            _set_pending_compare(version["id"], "__current__")
+                            st.rerun()
+                    with b:
+                        if st.button("Restore", key=f"restore_{version['id']}", use_container_width=True):
+                            confirm_restore_version_dialog(version["id"])
+                    with c:
+                        if st.button("Delete", key=f"del_{version['id']}", use_container_width=True):
+                            delete_version(version["id"])
+                            queue_auto_save()
+                            st.toast("Version deleted.")
+                            st.rerun()
+
+        st.divider()
+        if st.button("Back to CodeBook Editor"):
+            go_to_editor()
+
+    flush_queued_auto_save()
+
+
+def _render_value(value):
+    if value is None or value == "":
+        return "_(empty)_"
+    if isinstance(value, (list, dict)):
+        return f"```\n{json.dumps(value, indent=2, ensure_ascii=False)}\n```"
+    text = str(value)
+    if "\n" in text or len(text) > 80:
+        return f"```\n{text}\n```"
+    return text
+
+
+DIFF_INSERT_STYLE = "background:#c6f6d5;color:#166534;padding:0 2px;border-radius:2px;"
+DIFF_DELETE_STYLE = "background:#fecaca;color:#7f1d1d;padding:0 2px;border-radius:2px;text-decoration:line-through;"
+
+
+def _tokenize_for_diff(text):
+    """Split text into whitespace-preserving tokens for word-level diffing."""
+    return re.findall(r"\S+|\s+", text)
+
+
+def _format_diff_chunk(text, style):
+    if not text:
+        return ""
+    escaped = html_module.escape(text).replace("\n", "<br>")
+    return f'<span style="{style}">{escaped}</span>'
+
+
+def _plain_chunk(text):
+    if not text:
+        return ""
+    return html_module.escape(text).replace("\n", "<br>")
+
+
+def _inline_text_diff(old, new):
+    """Return ``(old_html, new_html)`` with word-level adds/removes highlighted."""
+    old_tokens = _tokenize_for_diff(old or "")
+    new_tokens = _tokenize_for_diff(new or "")
+    matcher = SequenceMatcher(a=old_tokens, b=new_tokens, autojunk=False)
+
+    old_parts = []
+    new_parts = []
+    for opcode, i1, i2, j1, j2 in matcher.get_opcodes():
+        old_chunk = "".join(old_tokens[i1:i2])
+        new_chunk = "".join(new_tokens[j1:j2])
+        if opcode == "equal":
+            old_parts.append(_plain_chunk(old_chunk))
+            new_parts.append(_plain_chunk(new_chunk))
+        elif opcode == "delete":
+            old_parts.append(_format_diff_chunk(old_chunk, DIFF_DELETE_STYLE))
+        elif opcode == "insert":
+            new_parts.append(_format_diff_chunk(new_chunk, DIFF_INSERT_STYLE))
+        elif opcode == "replace":
+            old_parts.append(_format_diff_chunk(old_chunk, DIFF_DELETE_STYLE))
+            new_parts.append(_format_diff_chunk(new_chunk, DIFF_INSERT_STYLE))
+
+    return "".join(old_parts), "".join(new_parts)
+
+
+def _wrap_diff_block(inner_html, multiline=False):
+    if not inner_html:
+        return '<div style="color:#6b7280;font-style:italic;">(empty)</div>'
+    if multiline:
+        return (
+            '<div style="background:#fafaf7;border:1px solid #e7e5e0;border-radius:4px;'
+            'padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
+            f'font-size:0.85em;white-space:pre-wrap;">{inner_html}</div>'
+        )
+    return f'<div style="line-height:1.55;">{inner_html}</div>'
+
+
+def _render_inline_text_diff(label, old, new):
+    """Render a string field with inline word-level highlighting (Before/After)."""
+    old_html, new_html = _inline_text_diff(old or "", new or "")
+    multiline = ("\n" in (str(old or ""))) or ("\n" in (str(new or ""))) or len(str(old or "") + str(new or "")) > 120
+
+    st.markdown(f"**{label}**")
+    col_old, col_new = st.columns(2)
+    with col_old:
+        st.caption("Before")
+        st.markdown(_wrap_diff_block(old_html, multiline=multiline), unsafe_allow_html=True)
+    with col_new:
+        st.caption("After")
+        st.markdown(_wrap_diff_block(new_html, multiline=multiline), unsafe_allow_html=True)
+
+
+def _render_structural_change(label, old, new):
+    """Render non-text fields (lists, dicts, numbers) as JSON Before/After."""
+    def fmt(value):
+        if value is None or value == "":
+            return '<div style="color:#6b7280;font-style:italic;">(empty)</div>'
+        if isinstance(value, (list, dict)):
+            text = json.dumps(value, indent=2, ensure_ascii=False)
+        else:
+            text = str(value)
+        return _wrap_diff_block(_plain_chunk(text), multiline=True)
+
+    st.markdown(f"**{label}**")
+    col_old, col_new = st.columns(2)
+    with col_old:
+        st.caption("Before")
+        st.markdown(fmt(old), unsafe_allow_html=True)
+    with col_new:
+        st.caption("After")
+        st.markdown(fmt(new), unsafe_allow_html=True)
+
+
+def _render_list_diff(label, old, new):
+    """Render lists (e.g., dropdown options) with item-level add/remove highlights."""
+    old_list = list(old or [])
+    new_list = list(new or [])
+    matcher = SequenceMatcher(a=old_list, b=new_list, autojunk=False)
+
+    old_lines = []
+    new_lines = []
+    for opcode, i1, i2, j1, j2 in matcher.get_opcodes():
+        if opcode == "equal":
+            for item in old_list[i1:i2]:
+                rendered = _plain_chunk(str(item))
+                old_lines.append(f"<div>• {rendered}</div>")
+                new_lines.append(f"<div>• {rendered}</div>")
+        elif opcode == "delete":
+            for item in old_list[i1:i2]:
+                old_lines.append(
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_DELETE_STYLE)}</div>'
+                )
+        elif opcode == "insert":
+            for item in new_list[j1:j2]:
+                new_lines.append(
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_INSERT_STYLE)}</div>'
+                )
+        elif opcode == "replace":
+            for item in old_list[i1:i2]:
+                old_lines.append(
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_DELETE_STYLE)}</div>'
+                )
+            for item in new_list[j1:j2]:
+                new_lines.append(
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_INSERT_STYLE)}</div>'
+                )
+
+    st.markdown(f"**{label}**")
+    col_old, col_new = st.columns(2)
+    with col_old:
+        st.caption("Before")
+        st.markdown(
+            _wrap_diff_block("".join(old_lines) or "", multiline=False),
+            unsafe_allow_html=True,
+        )
+    with col_new:
+        st.caption("After")
+        st.markdown(
+            _wrap_diff_block("".join(new_lines) or "", multiline=False),
+            unsafe_allow_html=True,
+        )
+
+
+def _example_block_signature(block):
+    """Stable string used to align old/new example blocks via SequenceMatcher."""
+    return f"{(block.get('text') or '').strip()}{(block.get('response') or '')}"
+
+
+def _render_example_block_card(block, kind):
+    """kind in {'unchanged','added','removed','modified_before','modified_after'}."""
+    text = block.get("text") or ""
+    response = block.get("response")
+    response_str = "" if response is None else str(response)
+
+    if kind == "added":
+        outer_style = "background:#dcfce7;border:1px solid #86efac;"
+        badge = '<span style="color:#166534;font-weight:600;font-size:0.75em;">ADDED</span><br>'
+    elif kind == "removed":
+        outer_style = "background:#fee2e2;border:1px solid #fca5a5;"
+        badge = '<span style="color:#7f1d1d;font-weight:600;font-size:0.75em;">REMOVED</span><br>'
+    else:
+        outer_style = "background:#fafaf7;border:1px solid #e7e5e0;"
+        badge = ""
+
+    body = (
+        f"<div><strong>Text:</strong><br>{_plain_chunk(text) or '<em>(empty)</em>'}</div>"
+        f'<div style="margin-top:6px;"><strong>Response:</strong> {_plain_chunk(response_str) or "<em>(empty)</em>"}</div>'
+    )
+    return (
+        f'<div style="{outer_style}border-radius:4px;padding:8px 10px;margin-bottom:8px;'
+        'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.85em;'
+        f'white-space:pre-wrap;">{badge}{body}</div>'
+    )
+
+
+def _render_example_block_diff(old_block, new_block):
+    """Render a modified example block with inline word-level diff for Text and Response."""
+    text_old, text_new = _inline_text_diff(old_block.get("text") or "", new_block.get("text") or "")
+    resp_old_raw = "" if old_block.get("response") is None else str(old_block.get("response"))
+    resp_new_raw = "" if new_block.get("response") is None else str(new_block.get("response"))
+    resp_old, resp_new = _inline_text_diff(resp_old_raw, resp_new_raw)
+
+    base_style = (
+        "background:#fafaf7;border:1px solid #e7e5e0;border-radius:4px;padding:8px 10px;"
+        "margin-bottom:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"
+        "font-size:0.85em;white-space:pre-wrap;"
+    )
+
+    def card(text_html, resp_html):
+        return (
+            f'<div style="{base_style}">'
+            f"<div><strong>Text:</strong><br>{text_html or '<em>(empty)</em>'}</div>"
+            f'<div style="margin-top:6px;"><strong>Response:</strong> {resp_html or "<em>(empty)</em>"}</div>'
+            "</div>"
+        )
+
+    return card(text_old, resp_old), card(text_new, resp_new)
+
+
+def _render_example_change(label, old, new, annotation_type=None):
+    """Render an example field change block-by-block.
+
+    Each example block is matched between old and new versions; modified blocks
+    show inline word-level diff, added blocks get a green ADDED badge, removed
+    blocks get a red REMOVED badge.
+    """
+    old_blocks = parse_example_blocks(old or "", annotation_type)
+    new_blocks = parse_example_blocks(new or "", annotation_type)
+
+    old_keys = [_example_block_signature(b) for b in old_blocks]
+    new_keys = [_example_block_signature(b) for b in new_blocks]
+    matcher = SequenceMatcher(a=old_keys, b=new_keys, autojunk=False)
+
+    old_html_parts = []
+    new_html_parts = []
+    for opcode, i1, i2, j1, j2 in matcher.get_opcodes():
+        if opcode == "equal":
+            for offset in range(i2 - i1):
+                block = old_blocks[i1 + offset]
+                card = _render_example_block_card(block, "unchanged")
+                old_html_parts.append(card)
+                new_html_parts.append(card)
+        elif opcode == "delete":
+            for block in old_blocks[i1:i2]:
+                old_html_parts.append(_render_example_block_card(block, "removed"))
+        elif opcode == "insert":
+            for block in new_blocks[j1:j2]:
+                new_html_parts.append(_render_example_block_card(block, "added"))
+        elif opcode == "replace":
+            # Pair up modified blocks; surplus on either side becomes add/remove.
+            pair_count = min(i2 - i1, j2 - j1)
+            for offset in range(pair_count):
+                old_card, new_card = _render_example_block_diff(
+                    old_blocks[i1 + offset], new_blocks[j1 + offset]
+                )
+                old_html_parts.append(old_card)
+                new_html_parts.append(new_card)
+            for block in old_blocks[i1 + pair_count : i2]:
+                old_html_parts.append(_render_example_block_card(block, "removed"))
+            for block in new_blocks[j1 + pair_count : j2]:
+                new_html_parts.append(_render_example_block_card(block, "added"))
+
+    st.markdown(f"**{label}**")
+    col_old, col_new = st.columns(2)
+    with col_old:
+        st.caption("Before")
+        st.markdown(
+            "".join(old_html_parts) or _wrap_diff_block("", multiline=False),
+            unsafe_allow_html=True,
+        )
+    with col_new:
+        st.caption("After")
+        st.markdown(
+            "".join(new_html_parts) or _wrap_diff_block("", multiline=False),
+            unsafe_allow_html=True,
+        )
+
+
+def _render_field_change(change, annotation=None):
+    field = change["field"]
+    label = field_label(field)
+    old = change.get("old")
+    new = change.get("new")
+
+    if field == "example":
+        annotation_type = None
+        if isinstance(annotation, dict):
+            annotation_type = annotation.get("type")
+        _render_example_change(label, old, new, annotation_type=annotation_type)
+    elif field == "options":
+        _render_list_diff(label, old, new)
+    elif isinstance(old, str) or isinstance(new, str) or old is None or new is None:
+        _render_inline_text_diff(label, old, new)
+    else:
+        _render_structural_change(label, old, new)
+
+    st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+
+
+def _annotation_summary(annotation):
+    if not isinstance(annotation, dict):
+        return ""
+    name = annotation.get("name") or "(unnamed)"
+    type_ = annotation.get("type") or ""
+    return f"{name} ({type_})" if type_ else name
+
+
+def _section_summary(section):
+    if not isinstance(section, dict):
+        return ""
+    return section.get("section_name") or "(unnamed section)"
+
+
+def version_compare_page():
+    def go_back():
+        st.session_state.page = "version_history"
+        queue_auto_save()
+        st.rerun()
+
+    render_header(home_action=go_back)
+
+    left_id = st.session_state.get("_pending_compare_left")
+    right_id = st.session_state.get("_pending_compare_right")
+
+    _, body, _ = st.columns([0.08, 0.84, 0.08])
+    with body:
+        st.header("Compare CodeBook Versions")
+
+        if not left_id or not right_id:
+            st.info("Choose two versions to compare from the Version History page.")
+            if st.button("Back to Version History"):
+                go_back()
+            return
+
+        def _resolve(version_id):
+            if version_id == "__current__":
+                return {
+                    "label": "Current draft",
+                    "saved_at": datetime.now(timezone.utc).isoformat(),
+                    "schema": st.session_state.get("custom_schema") or {},
+                }
+            return get_version(version_id)
+
+        left = _resolve(left_id)
+        right = _resolve(right_id)
+
+        if not left or not right:
+            st.warning("One of the selected versions is no longer available.")
+            if st.button("Back to Version History"):
+                go_back()
+            return
+
+        meta_left, meta_right = st.columns(2)
+        with meta_left:
+            st.markdown(f"**Before:** {left.get('label') or '(no label)'}")
+            st.caption(_format_version_timestamp(left.get("saved_at")))
+        with meta_right:
+            st.markdown(f"**After:** {right.get('label') or '(no label)'}")
+            st.caption(_format_version_timestamp(right.get("saved_at")))
+
+        st.divider()
+
+        changes = diff_schemas(left.get("schema"), right.get("schema"))
+        if not changes:
+            st.success("No differences between these versions.")
+            if st.button("Back to Version History"):
+                go_back()
+            return
+
+        top_changes, section_buckets = group_by_section(changes)
+
+        if top_changes:
+            with st.container(border=True):
+                st.markdown("##### Header / Text columns")
+                for change in top_changes:
+                    _render_field_change(change)
+
+        for bucket in section_buckets:
+            section_key = bucket["section_key"]
+            bucket_changes = bucket["changes"]
+
+            section_added = next((c for c in bucket_changes if c["kind"] == "section_added"), None)
+            section_removed = next((c for c in bucket_changes if c["kind"] == "section_removed"), None)
+
+            if section_added:
+                with st.container(border=True):
+                    st.markdown(f"##### {section_key} — :green[Added]")
+                    st.markdown(f"**Section:** {_section_summary(section_added['section'])}")
+                    instruction = section_added["section"].get("section_instruction")
+                    if instruction:
+                        st.caption("Instruction")
+                        st.markdown(_render_value(instruction))
+                    annotations = section_added["section"].get("annotations") or {}
+                    if annotations:
+                        st.caption("Annotations")
+                        for ann_key, ann in annotations.items():
+                            st.markdown(f"- {ann_key}: {_annotation_summary(ann)}")
+                    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+                continue
+
+            if section_removed:
+                with st.container(border=True):
+                    st.markdown(f"##### {section_key} — :red[Removed]")
+                    st.markdown(f"**Section:** {_section_summary(section_removed['section'])}")
+                    st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+                continue
+
+            section_label = section_key
+            for change in bucket_changes:
+                if change["kind"] == "field_changed" and change["scope"] == "section" and change["field"] == "section_name":
+                    section_label = f"{section_key} — {change['old']} → {change['new']}"
+                    break
+
+            with st.container(border=True):
+                st.markdown(f"##### {section_label}")
+                section_field_changes = [
+                    c for c in bucket_changes if c["kind"] == "field_changed" and c["scope"] == "section"
+                ]
+                for change in section_field_changes:
+                    _render_field_change(change)
+
+                annotation_groups = {}
+                for change in bucket_changes:
+                    if change["kind"] in {"annotation_added", "annotation_removed"} or (
+                        change["kind"] == "field_changed" and change["scope"] == "annotation"
+                    ):
+                        annotation_groups.setdefault(change["annotation_key"], []).append(change)
+
+                for annotation_key, ann_changes in annotation_groups.items():
+                    added = next((c for c in ann_changes if c["kind"] == "annotation_added"), None)
+                    removed = next((c for c in ann_changes if c["kind"] == "annotation_removed"), None)
+
+                    if added:
+                        st.markdown(f"**{annotation_key} — :green[Added]:** {_annotation_summary(added['annotation'])}")
+                        continue
+                    if removed:
+                        st.markdown(f"**{annotation_key} — :red[Removed]:** {_annotation_summary(removed['annotation'])}")
+                        continue
+
+                    st.markdown(f"**{annotation_key}**")
+                    new_section = (right.get("schema") or {}).get(section_key) or {}
+                    old_section = (left.get("schema") or {}).get(section_key) or {}
+                    annotation_for_type = (
+                        (new_section.get("annotations") or {}).get(annotation_key)
+                        or (old_section.get("annotations") or {}).get(annotation_key)
+                    )
+                    for change in ann_changes:
+                        _render_field_change(change, annotation=annotation_for_type)
+                st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+
+        st.divider()
+        if st.button("Back to Version History"):
+            go_back()
+
+    flush_queued_auto_save()
+
+
 if 'page' not in st.session_state:
     st.session_state.page = 'landing'
 
@@ -2947,6 +3644,12 @@ elif st.session_state.page == 'create_schema':
 elif st.session_state.page == 'prompt_preview':
     st.set_page_config(page_title=page_title, page_icon=page_icon, layout="wide")
     prompt_preview_page()
+elif st.session_state.page == 'version_history':
+    st.set_page_config(page_title=page_title, page_icon=page_icon, layout="wide")
+    version_history_page()
+elif st.session_state.page == 'version_compare':
+    st.set_page_config(page_title=page_title, page_icon=page_icon, layout="wide")
+    version_compare_page()
 
 
 # Add a footer
