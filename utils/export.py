@@ -115,11 +115,20 @@ def _response_type_line_latex(annotation):
         return "    \\item \\textbf{Response:} Yes/No"
     elif ann_type == 'textbox':
         return "    \\item \\textbf{Response:} Free text"
+    elif ann_type == 'span':
+        label_options = annotation.get('label_options', []) or []
+        if label_options:
+            formatted = ', '.join(o for o in label_options)
+            return f"    \\item \\textbf{{Response:}} Highlight text spans, label each with: {_escape_latex(formatted)}"
+        return "    \\item \\textbf{Response:} Highlight one or more text spans as evidence"
     return ""
 
 
 def _format_examples_latex(example_text, annotation_type):
     """Format parsed examples as a nested LaTeX itemize structure."""
+    if annotation_type == 'span':
+        return _format_span_examples_latex(example_text)
+
     parsed = parse_examples(example_text, annotation_type)
     if not parsed:
         return ""
@@ -140,6 +149,43 @@ def _format_examples_latex(example_text, annotation_type):
                 lines.append(f"            \\item {_latex_quote(escaped + ' [\\ldots]')}")
             else:
                 lines.append(f"            \\item {_latex_quote(escaped)}")
+        lines.append("        \\end{itemize}")
+
+    lines.append("    \\end{itemize}")
+    return '\n'.join(lines)
+
+
+def _format_span_examples_latex(example_text):
+    """Render span examples as Text + Highlights (label: phrase) to mirror
+    the user-facing UI, instead of exposing character offsets to readers."""
+    from .html_parser import parse_example_blocks
+    blocks = parse_example_blocks(example_text, 'span')
+    if not blocks:
+        return ""
+
+    lines = []
+    lines.append("    \\item \\textbf{Examples:}")
+    lines.append("    \\begin{itemize}")
+
+    for block in blocks:
+        text = str(block.get("text", "")).strip()
+        if text:
+            lines.append(f"        \\item \\textbf{{Text:}} {_latex_quote(_escape_latex(text))}")
+        response = block.get("response")
+        spans = response if isinstance(response, list) else []
+        if not spans:
+            continue
+        lines.append("        \\begin{itemize}")
+        for span in spans:
+            phrase = str(span.get("text") or "").strip()
+            if not phrase:
+                continue
+            quoted = _latex_quote(_escape_latex(phrase))
+            label = span.get("label")
+            if label:
+                lines.append(f"            \\item {_escape_latex(str(label))}: {quoted}")
+            else:
+                lines.append(f"            \\item Highlight: {quoted}")
         lines.append("        \\end{itemize}")
 
     lines.append("    \\end{itemize}")
@@ -228,11 +274,19 @@ def _response_type_line_markdown(annotation):
         return "- **Response:** Yes/No"
     elif ann_type == 'textbox':
         return "- **Response:** Free text"
+    elif ann_type == 'span':
+        label_options = annotation.get('label_options', []) or []
+        if label_options:
+            return f"- **Response:** Highlight text spans, label each with: {', '.join(label_options)}"
+        return "- **Response:** Highlight one or more text spans as evidence"
     return ""
 
 
 def _format_examples_markdown(example_text, annotation_type):
     """Format parsed examples as a nested Markdown list."""
+    if annotation_type == 'span':
+        return _format_span_examples_markdown(example_text)
+
     parsed = parse_examples(example_text, annotation_type)
     if not parsed:
         return ""
@@ -248,6 +302,36 @@ def _format_examples_markdown(example_text, annotation_type):
                 lines.append(f'    - "{truncated} [...]"')
             else:
                 lines.append(f'    - "{truncated}"')
+
+    return '\n'.join(lines)
+
+
+def _format_span_examples_markdown(example_text):
+    """Render span examples as Text + Highlights (label: phrase) instead of
+    the raw JSON span array, so the rendered Markdown reads like the UI."""
+    from .html_parser import parse_example_blocks
+    blocks = parse_example_blocks(example_text, 'span')
+    if not blocks:
+        return ""
+
+    lines = []
+    lines.append("- **Examples:**")
+
+    for block in blocks:
+        text = str(block.get("text", "")).strip()
+        if text:
+            lines.append(f'  - **Text:** "{text}"')
+        response = block.get("response")
+        spans = response if isinstance(response, list) else []
+        for span in spans:
+            phrase = str(span.get("text") or "").strip()
+            if not phrase:
+                continue
+            label = span.get("label")
+            if label:
+                lines.append(f'    - {label}: "{phrase}"')
+            else:
+                lines.append(f'    - Highlight: "{phrase}"')
 
     return '\n'.join(lines)
 

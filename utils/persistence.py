@@ -9,6 +9,8 @@ import streamlit.components.v1 as components
 import pandas as pd
 from streamlit_js_eval import streamlit_js_eval
 
+from utils.span_value import serialize_span_value
+
 STORAGE_KEY = "codebook_studio_save"
 SAVE_VERSION = 2
 MAX_SAVE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB warning threshold
@@ -211,6 +213,8 @@ def _serialize_state():
         if 0 <= index < len(data_for_save) and annotations:
             for annotation_option, value in annotations.items():
                 if annotation_option in data_for_save.columns:
+                    if isinstance(value, list):
+                        value = serialize_span_value(value)
                     data_for_save.at[index, annotation_option] = value
         csv_str = data_for_save.to_csv(index=False)
 
