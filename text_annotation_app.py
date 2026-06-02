@@ -2500,7 +2500,9 @@ def process_data(uploaded_file, text_column):
             for _, annotation_content in section_content["annotations"].items():
                 full_column_name = f"{section_content['section_name']}_{annotation_content['name']}"
                 if full_column_name not in df.columns:
-                    df[full_column_name] = None
+                    df[full_column_name] = pd.Series([None] * len(df), dtype=object, index=df.index)
+                elif df[full_column_name].dtype != object:
+                    df[full_column_name] = df[full_column_name].astype(object).where(df[full_column_name].notna(), None)
 
     return df
 
