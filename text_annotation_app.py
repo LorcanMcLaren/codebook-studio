@@ -530,6 +530,18 @@ def render_header(home_action=None):
             justify-content: space-between !important;
         }
 
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(5):last-child) > button,
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(6):last-child) > button {
+            flex: 1 1 calc(100% / 3 - 0.5rem) !important;
+            max-width: calc(100% / 3 - 0.5rem) !important;
+        }
+
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(7):last-child) > button,
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(8):last-child) > button {
+            flex: 1 1 calc(100% / 4 - 0.5rem) !important;
+            max-width: calc(100% / 4 - 0.5rem) !important;
+        }
+
         .stTextArea [data-baseweb="textarea"] {
             border: 1px solid var(--cb-border) !important;
             border-radius: 14px !important;
@@ -2356,14 +2368,6 @@ def render_active_section(index, sections):
         )
         completion_placeholder = st.empty()
 
-        section_instruction = section_content.get("section_instruction", "")
-        if section_instruction:
-            render_persistent_disclosure(
-                "Instructions",
-                f"annotation_instructions__{selected_section}",
-                lambda: render_disclosure_copy(section_instruction),
-            )
-
         if not annotations:
             notice_title, notice_body = get_section_condition_notice(
                 st.session_state.custom_schema,
@@ -2371,21 +2375,30 @@ def render_active_section(index, sections):
                 section_content,
             )
             render_conditional_notice(notice_title, notice_body)
-        elif checkbox_only:
-            checkbox_columns = st.columns(2, gap="medium")
-            for idx, (_, config) in enumerate(annotations):
-                full_column_name = get_annotation_column_name(section_content, config)
-                with checkbox_columns[idx % 2]:
-                    render_annotation_input(section_content, config, full_column_name, index)
         else:
-            for _, config, is_active in annotation_status:
-                if is_active:
+            section_instruction = section_content.get("section_instruction", "")
+            if section_instruction:
+                render_persistent_disclosure(
+                    "Instructions",
+                    f"annotation_instructions__{selected_section}",
+                    lambda: render_disclosure_copy(section_instruction),
+                )
+
+            if checkbox_only:
+                checkbox_columns = st.columns(2, gap="medium")
+                for idx, (_, config) in enumerate(annotations):
                     full_column_name = get_annotation_column_name(section_content, config)
-                    render_annotation_input(section_content, config, full_column_name, index)
-                else:
-                    notice = get_annotation_condition_notice(st.session_state.custom_schema, config)
-                    if notice:
-                        render_conditional_notice(*notice)
+                    with checkbox_columns[idx % 2]:
+                        render_annotation_input(section_content, config, full_column_name, index)
+            else:
+                for _, config, is_active in annotation_status:
+                    if is_active:
+                        full_column_name = get_annotation_column_name(section_content, config)
+                        render_annotation_input(section_content, config, full_column_name, index)
+                    else:
+                        notice = get_annotation_condition_notice(st.session_state.custom_schema, config)
+                        if notice:
+                            render_conditional_notice(*notice)
 
         completed, total = get_section_completion(
             st.session_state.custom_schema,
