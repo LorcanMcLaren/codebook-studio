@@ -1028,6 +1028,17 @@ def get_section_condition_notice(schema, section_key, section_content):
     )
 
 
+def get_annotation_condition_notice(schema, annotation):
+    condition = get_annotation_condition(annotation)
+    if not condition:
+        return None
+    requirement_text = get_condition_requirement_text(schema, condition)
+    return (
+        "Question conditional on an earlier answer",
+        f"This question is shown only when {requirement_text}.",
+    )
+
+
 def get_available_condition_sources(schema, current_section_key, current_annotation_key):
     sources = []
     for section_key, section_content, annotation_key, annotation in get_annotation_entries(schema):
@@ -2316,13 +2327,26 @@ def render_active_section(index, sections):
         selected_section = active_section
 
     section_content = dict(sections)[selected_section]
-    annotations = get_active_annotations(
-        st.session_state.custom_schema,
-        selected_section,
-        section_content,
-        st.session_state.annotations,
+    lookup = get_annotation_lookup(st.session_state.custom_schema)
+    annotation_status = []
+    for annotation_key in get_sorted_annotation_keys(section_content):
+        annotation = section_content.get("annotations", {}).get(annotation_key, {})
+        is_active = is_annotation_active(
+            st.session_state.custom_schema,
+            selected_section,
+            annotation_key,
+            st.session_state.annotations,
+            lookup=lookup,
+        )
+        annotation_status.append((annotation_key, annotation, is_active))
+
+    annotations = [(key, annotation) for key, annotation, is_active in annotation_status if is_active]
+    has_inactive = any(not is_active for _, _, is_active in annotation_status)
+    checkbox_only = (
+        annotations
+        and not has_inactive
+        and all(annotation["type"] == "checkbox" for _, annotation in annotations)
     )
-    checkbox_only = annotations and all(annotation["type"] == "checkbox" for _, annotation in annotations)
 
     with st.container(border=True, height=ANNOTATION_PANE_HEIGHT):
         st.markdown('<div class="cb-pane-label">Annotation section</div>', unsafe_allow_html=True)
@@ -2354,9 +2378,14 @@ def render_active_section(index, sections):
                 with checkbox_columns[idx % 2]:
                     render_annotation_input(section_content, config, full_column_name, index)
         else:
-            for _, config in annotations:
-                full_column_name = get_annotation_column_name(section_content, config)
-                render_annotation_input(section_content, config, full_column_name, index)
+            for _, config, is_active in annotation_status:
+                if is_active:
+                    full_column_name = get_annotation_column_name(section_content, config)
+                    render_annotation_input(section_content, config, full_column_name, index)
+                else:
+                    notice = get_annotation_condition_notice(st.session_state.custom_schema, config)
+                    if notice:
+                        render_conditional_notice(*notice)
 
         completed, total = get_section_completion(
             st.session_state.custom_schema,
