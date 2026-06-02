@@ -1568,10 +1568,37 @@ def render_annotation_toolbar(index, data, sections):
                     update_index(index + 2)
 
 
+_URL_RE = re.compile(r'https?://[^\s<>"]+')
+_URL_TRAILING_PUNCT = ".,;:!?)\"'"
+
+
+def _linkify_and_escape(text):
+    """Escape HTML in text and convert URLs to clickable anchors."""
+    if text is None:
+        return ""
+    text = str(text)
+    if not text:
+        return ""
+    parts = []
+    cursor = 0
+    for match in _URL_RE.finditer(text):
+        url = match.group(0).rstrip(_URL_TRAILING_PUNCT)
+        if not url:
+            continue
+        parts.append(html_module.escape(text[cursor:match.start()]))
+        safe_url = html_module.escape(url, quote=True)
+        parts.append(
+            f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer">{html_module.escape(url)}</a>'
+        )
+        cursor = match.start() + len(url)
+    parts.append(html_module.escape(text[cursor:]))
+    return "".join(parts).replace("\n", "<br>")
+
+
 def render_text_pane(index, data):
     text_column = st.session_state.custom_schema["text_column"]
     current_text = data.iloc[index][text_column]
-    safe_text = html_module.escape(str(current_text)).replace("\n", "<br>")
+    safe_text = _linkify_and_escape(current_text)
 
     with st.container(border=True, height=DOCUMENT_PANE_HEIGHT):
         st.markdown('<div class="cb-pane-label">Document text</div>', unsafe_allow_html=True)
@@ -1732,7 +1759,7 @@ def render_persistent_disclosure(label, state_key, render_content, default_open=
 
 
 def render_disclosure_copy(text):
-    safe_text = html_module.escape(str(text)).replace("\n", "<br>")
+    safe_text = _linkify_and_escape(text)
     st.markdown(f'<div class="cb-disclosure-copy">{safe_text}</div>', unsafe_allow_html=True)
 
 
@@ -1748,7 +1775,7 @@ def render_example_blocks(example_text, annotation_type):
             block.get("response", ""),
             annotation_type,
         ).strip()
-        safe_text = html_module.escape(text_value).replace("\n", "<br>")
+        safe_text = _linkify_and_escape(text_value)
         safe_response = html_module.escape(response_value or "Example")
 
         rendered_cards.append(
@@ -2177,7 +2204,7 @@ def render_schema_workflow_preview(schema, header_column, text_column, metadata_
         with st.container(border=True, height=EDITOR_PREVIEW_TEXT_HEIGHT):
             st.markdown('<div class="cb-preview-pane-marker"></div>', unsafe_allow_html=True)
             st.markdown('<div class="cb-pane-label">Document text</div>', unsafe_allow_html=True)
-            safe_text = html_module.escape(sample_text).replace("\n", "<br>")
+            safe_text = _linkify_and_escape(sample_text)
             st.markdown(f'<div class="cb-document">{safe_text}</div>', unsafe_allow_html=True)
 
     with preview_right:
