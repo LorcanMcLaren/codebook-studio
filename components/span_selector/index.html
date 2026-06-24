@@ -1,0 +1,347 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&display=swap">
+<style>
+  /* Keep these in sync with the parent app's CSS variables so the document
+     text inside the iframe is visually identical to the static document text
+     in non-span sections. */
+  :root {
+    --cb-ink: #2f2b28;
+    --cb-muted: #8a837b;
+    --cb-paper: #fafaf7;
+    --cb-border: #e7e5e0;
+  }
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body {
+    /* Streamlit's text rendering does not set font-smoothing, so we leave it
+       at the browser default here too -- otherwise the iframe text reads
+       slightly lighter than the main pane on macOS. */
+    font-family: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--cb-ink);
+    font-weight: 400;
+  }
+  /* The Streamlit container around the iframe supplies the border, padding,
+     background, and "DOCUMENT TEXT" label so that span and non-span sections
+     render an identical document pane. The iframe is just the content. */
+  .wrap {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-sizing: border-box;
+  }
+  .hint {
+    color: var(--cb-muted);
+    font-size: 0.76rem;
+    margin-bottom: 10px;
+    user-select: none;
+  }
+  .doc {
+    color: var(--cb-ink);
+    font-size: 1rem;
+    line-height: 1.72;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    cursor: text;
+  }
+  /* No border or border-radius: adjacent segments need to butt up against
+     each other so two overlapping spans read as one continuous highlight
+     with a striped transition zone, not three separate boxes. */
+  mark {
+    padding: 1px 0;
+    cursor: pointer;
+  }
+  mark.focused { /* colour identifies the annotation, no outline needed */ }
+  mark:hover { filter: brightness(0.97); }
+  mark .close {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.72em;
+    opacity: 0.55;
+    vertical-align: 1px;
+    user-select: none;
+  }
+  mark:hover .close { opacity: 1; }
+  mark .lbl {
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 0.7em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hint" class="hint"></div>
+  <div id="doc" class="doc"></div>
+</div>
+<script>
+  const parentWin = window.parent;
+  let lastArgs = null;
+
+  let lastSentHeight = 0;
+
+  function postReady() {
+    parentWin.postMessage({ isStreamlitMessage: true, type: 'streamlit:componentReady', apiVersion: 1 }, '*');
+  }
+
+  function postValue(value) {
+    parentWin.postMessage({
+      isStreamlitMessage: true,
+      type: 'streamlit:setComponentValue',
+      value: value,
+      dataType: 'json',
+    }, '*');
+  }
+
+  function postHeight(h) {
+    const clamped = Math.max(120, Math.min(2400, Math.round(h)));
+    if (clamped === lastSentHeight) return;
+    lastSentHeight = clamped;
+    parentWin.postMessage({ isStreamlitMessage: true, type: 'streamlit:setFrameHeight', height: clamped }, '*');
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    })[c]);
+  }
+
+  function render(args) {
+    lastArgs = args;
+    const text = args.text || '';
+    const rawSpans = Array.isArray(args.spans) ? args.spans.slice() : [];
+    const hint = args.hint || '';
+
+    const hintEl = document.getElementById('hint');
+    hintEl.textContent = hint;
+    hintEl.style.display = hint ? '' : 'none';
+
+    // Only consider valid spans within bounds.
+    const spans = rawSpans
+      .filter(sp =>
+        sp.start != null && sp.end != null &&
+        sp.end > sp.start && sp.start >= 0 && sp.end <= text.length
+      )
+      .sort((a, b) => a.start - b.start || b.end - a.end);
+
+    const doc = document.getElementById('doc');
+    doc.innerHTML = '';
+
+    if (spans.length === 0) {
+      doc.appendChild(document.createTextNode(text));
+      scheduleMeasure();
+      return;
+    }
+
+    // Build non-overlapping segments at every span boundary so we can render
+    // overlapping highlights as layered stripes instead of dropping all but
+    // the first.
+    const boundarySet = new Set([0, text.length]);
+    for (const sp of spans) {
+      boundarySet.add(sp.start);
+      boundarySet.add(sp.end);
+    }
+    const boundaries = [...boundarySet]
+      .filter(p => p >= 0 && p <= text.length)
+      .sort((a, b) => a - b);
+
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const segStart = boundaries[i];
+      const segEnd = boundaries[i + 1];
+      if (segStart === segEnd) continue;
+
+      const covering = spans.filter(sp => sp.start <= segStart && sp.end >= segEnd);
+
+      if (covering.length === 0) {
+        doc.appendChild(document.createTextNode(text.slice(segStart, segEnd)));
+        continue;
+      }
+
+      const mark = document.createElement('mark');
+      if (covering.length === 1) {
+        mark.style.background = covering[0].color || '#fde68a';
+      } else {
+        // Stripe the segment so each overlapping span's colour is visible.
+        const colors = covering.map(c => c.color || '#fde68a');
+        const step = 100 / colors.length;
+        const stops = colors
+          .map((c, idx) => `${c} ${(idx * step).toFixed(2)}% ${((idx + 1) * step).toFixed(2)}%`)
+          .join(', ');
+        mark.style.background = `linear-gradient(to bottom, ${stops})`;
+      }
+      if (covering.some(sp => sp.focused)) mark.classList.add('focused');
+
+      const title = covering
+        .map(sp => [sp.annotation_label, sp.label].filter(Boolean).join(' — '))
+        .filter(Boolean)
+        .join('  •  ');
+      if (title) mark.title = title;
+
+      // No inline label badges here: each span's colour identifies the label.
+      // The right-panel current-selections list and the Examples disclosure
+      // show the colour-matched badges with the human-readable text.
+
+      mark.appendChild(document.createTextNode(text.slice(segStart, segEnd)));
+
+      // Per-span close button, only on the segment where the span ends.
+      for (const sp of covering) {
+        if (sp.end === segEnd) {
+          const closeBtn = document.createElement('span');
+          closeBtn.className = 'close';
+          closeBtn.textContent = '✕';
+          closeBtn.dataset.role = 'close';
+          closeBtn.dataset.ann = sp.annotation_key || '';
+          closeBtn.dataset.idx = String(sp.index);
+          mark.appendChild(closeBtn);
+        }
+      }
+
+      doc.appendChild(mark);
+    }
+
+    scheduleMeasure();
+  }
+
+  // Always have *some* height so the iframe is visible even before measure
+  // succeeds (some browsers report .offsetHeight == 0 until the iframe gets
+  // a non-zero size from the parent).
+  function scheduleMeasure() {
+    const measure = () => {
+      const wrap = document.querySelector('.wrap');
+      const measured = wrap ? wrap.offsetHeight : 0;
+      if (measured > 0) {
+        postHeight(measured + 4);
+      }
+    };
+    requestAnimationFrame(measure);
+    setTimeout(measure, 60);
+    setTimeout(measure, 200);
+    setTimeout(measure, 600);
+  }
+
+  // Compute offset within plain doc text, skipping label/close ornaments.
+  function offsetInDoc(targetNode, targetOffset) {
+    const doc = document.getElementById('doc');
+    let total = 0;
+    let found = false;
+    function visit(node) {
+      if (found) return;
+      if (node === targetNode) {
+        if (node.nodeType === 3) {
+          total += targetOffset;
+          found = true;
+        } else {
+          // element start: nothing to add
+          found = true;
+        }
+        return;
+      }
+      if (node.nodeType === 1) {
+        // Skip ornamental children (label, close)
+        if (node.classList && (node.classList.contains('close') || node.classList.contains('lbl'))) {
+          if (node === targetNode) found = true;
+          return;
+        }
+        for (let i = 0; i < node.childNodes.length; i++) {
+          visit(node.childNodes[i]);
+          if (found) return;
+        }
+      } else if (node.nodeType === 3) {
+        total += node.nodeValue.length;
+      }
+    }
+    visit(doc);
+    return found ? total : -1;
+  }
+
+  document.addEventListener('mouseup', () => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (range.collapsed) return;
+    const doc = document.getElementById('doc');
+    if (!doc.contains(range.startContainer) || !doc.contains(range.endContainer)) return;
+
+    let s = offsetInDoc(range.startContainer, range.startOffset);
+    let e = offsetInDoc(range.endContainer, range.endOffset);
+    if (s < 0 || e < 0) return;
+    if (e < s) [s, e] = [e, s];
+    if (e <= s) return;
+
+    const fullText = lastArgs?.text || '';
+    // Trim leading/trailing whitespace from selection
+    let trimmedStart = s, trimmedEnd = e;
+    while (trimmedStart < trimmedEnd && /\s/.test(fullText[trimmedStart])) trimmedStart++;
+    while (trimmedEnd > trimmedStart && /\s/.test(fullText[trimmedEnd - 1])) trimmedEnd--;
+    if (trimmedEnd <= trimmedStart) return;
+
+    const text = fullText.slice(trimmedStart, trimmedEnd);
+    postValue({ kind: 'add', start: trimmedStart, end: trimmedEnd, text: text, nonce: Date.now() + Math.random() });
+    sel.removeAllRanges();
+  });
+
+  document.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('[data-role="close"]');
+    if (!closeBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ann = closeBtn.dataset.ann;
+    const idx = parseInt(closeBtn.dataset.idx, 10);
+    if (Number.isFinite(idx)) {
+      postValue({ kind: 'remove', annotation_key: ann, index: idx, nonce: Date.now() + Math.random() });
+    }
+  });
+
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (data && data.type === 'streamlit:render') {
+      render(data.args || {});
+    }
+  });
+
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      const wrap = document.querySelector('.wrap');
+      if (wrap && wrap.offsetHeight > 0) {
+        postHeight(wrap.offsetHeight + 4);
+      }
+    });
+    ro.observe(document.querySelector('.wrap'));
+  }
+
+  // The Google-hosted Libre Franklin font arrives after first paint; re-measure
+  // once it's ready so the iframe doesn't end up with leftover whitespace from
+  // a taller fallback font.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      const wrap = document.querySelector('.wrap');
+      if (wrap && wrap.offsetHeight > 0) postHeight(wrap.offsetHeight + 4);
+    });
+  }
+
+  postReady();
+
+  // Streamlit ignores setFrameHeight messages until the component finishes
+  // registering after componentReady. Send a baseline height after a small
+  // delay so the iframe is visible even if streamlit:render is slow to arrive
+  // or the offsetHeight measurement reads 0.
+  const sendBaseline = () => {
+    const wrap = document.querySelector('.wrap');
+    const measured = wrap ? wrap.offsetHeight : 0;
+    postHeight(measured > 0 ? measured + 4 : 220);
+  };
+  setTimeout(sendBaseline, 50);
+  setTimeout(sendBaseline, 200);
+  setTimeout(sendBaseline, 600);
+  setTimeout(sendBaseline, 1500);
+</script>
+</body>
+</html>

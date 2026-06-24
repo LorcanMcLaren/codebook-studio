@@ -277,6 +277,26 @@ def _normalize_response_value(response_value, annotation_type=None):
         except (ValueError, TypeError):
             return response_value
 
+    if annotation_type == "span":
+        # Span responses are JSON arrays; preserve list/dict shape so
+        # json.dumps emits a real JSON array, not a stringified Python repr.
+        if isinstance(response_value, (list, dict)):
+            return response_value
+        if response_value is None:
+            return []
+        if isinstance(response_value, str):
+            text = response_value.strip()
+            if not text:
+                return []
+            try:
+                import json as _json
+                parsed = _json.loads(text)
+                if isinstance(parsed, (list, dict)):
+                    return parsed
+            except (ValueError, TypeError):
+                pass
+        return []
+
     if response_value is None:
         return ""
 

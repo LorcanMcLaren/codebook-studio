@@ -11,7 +11,7 @@ when annotating texts using a given schema.
 # Prompt generation functions (ported from annotate.py)
 # --------------------------------------------------------------------------
 
-def _get_response_instructions(annotation_type, options=None, min_value=None, max_value=None):
+def _get_response_instructions(annotation_type, options=None, min_value=None, max_value=None, label_options=None):
     """Helper function to generate response instructions based on annotation type"""
     if annotation_type == "dropdown" and options:
         options_str = ', or '.join(f'"{option}"' for option in options)
@@ -22,6 +22,19 @@ def _get_response_instructions(annotation_type, options=None, min_value=None, ma
         return f"Respond with a whole number from {min_value} to {max_value} (inclusive), where {min_value} means lowest and {max_value} means highest."
     if annotation_type == "textbox":
         return "Respond with a brief text explanation."
+    if annotation_type == "span":
+        if label_options:
+            labels_str = ', or '.join(f'"{option}"' for option in label_options)
+            return (
+                "Respond with a JSON array of objects, each shaped like "
+                '{"start": <int>, "end": <int>, "text": "<quoted span>", "label": <one of '
+                f"{labels_str}>}}. Use 0-indexed character offsets into the text. Return [] if no spans apply."
+            )
+        return (
+            "Respond with a JSON array of objects, each shaped like "
+            '{"start": <int>, "end": <int>, "text": "<quoted span>"}. '
+            "Use 0-indexed character offsets into the text. Return [] if no spans apply."
+        )
     return ""
 
 
@@ -79,7 +92,8 @@ def _add_cot_wrapper(core_prompt, text):
 
 def format_prompt(section_name, section_instruction, name, tooltip, annotation_type,
                   options=None, min_value=None, max_value=None, example=None,
-                  text=None, prompt_type="standard", use_examples=False):
+                  text=None, prompt_type="standard", use_examples=False,
+                  label_options=None):
     """
     Format a complete prompt for a single annotation.
 
@@ -101,7 +115,7 @@ def format_prompt(section_name, section_instruction, name, tooltip, annotation_t
         str: The complete formatted prompt
     """
     response_instructions = _get_response_instructions(
-        annotation_type, options, min_value, max_value
+        annotation_type, options, min_value, max_value, label_options=label_options
     )
 
     core_prompt = _build_core_prompt(
@@ -164,6 +178,7 @@ def render_prompt_preview_page(schema):
             options = annotation.get('options', None)
             min_value = annotation.get('min_value', None)
             max_value = annotation.get('max_value', None)
+            label_options = annotation.get('label_options', None)
 
             prompt = format_prompt(
                 section_name=section_name,
@@ -178,6 +193,7 @@ def render_prompt_preview_page(schema):
                 text="<text to annotate>",
                 prompt_type=prompt_type,
                 use_examples=use_examples,
+                label_options=label_options,
             )
 
             st.subheader(f"{section_name} — {name} ({ann_type})")
@@ -225,6 +241,7 @@ def generate_all_prompts_text(schema, prompt_type="standard", use_examples=False
             options = annotation.get('options', None)
             min_value = annotation.get('min_value', None)
             max_value = annotation.get('max_value', None)
+            label_options = annotation.get('label_options', None)
 
             prompt = format_prompt(
                 section_name=section_name,
@@ -239,6 +256,7 @@ def generate_all_prompts_text(schema, prompt_type="standard", use_examples=False
                 text="<text to annotate>",
                 prompt_type=prompt_type,
                 use_examples=use_examples,
+                label_options=label_options,
             )
 
             header = f"{section_name} — {name} ({ann_type})"

@@ -24,6 +24,8 @@ from utils.adjudication import (
     unresolved_item_indices,
 )
 from utils.codebook_diff import diff_schemas, group_by_section, field_label
+from utils.span_value import parse_span_value, serialize_span_value
+from utils.span_selector import span_selector
 
 load_state_if_available = persistence_utils.load_state_if_available
 restore_session_state = persistence_utils.restore_session_state
@@ -118,6 +120,14 @@ DEMO_TASKS = {
         "context": "Stump speeches and campaign statements",
         "description": "Explore populist cues, anti-elite language, incivility, and tone.",
         "summary": "Checkboxes, incivility dropdown, Likert, and evidence textbox",
+        "rows": 6,
+    },
+    "discrete_emotions": {
+        "slug": "discrete_emotions",
+        "title": "Discrete Emotions",
+        "context": "Short literary and news passages",
+        "description": "Tag discrete emotions and highlight the phrases that express them.",
+        "summary": "Dropdown, Likert, simple span (evidence), and labeled spans (emotion markers)",
         "rows": 6,
     },
 }
@@ -365,8 +375,18 @@ def render_header(home_action=None):
             margin-bottom: 0.55rem;
         }
 
+        .cb-pane-label-hint {
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0.02em;
+            margin-left: 0.25rem;
+            color: var(--cb-muted);
+        }
+
         .cb-document {
+            font-family: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             color: var(--cb-ink);
+            font-weight: 400;
             line-height: 1.72;
             font-size: 1rem;
             white-space: pre-wrap;
@@ -510,6 +530,105 @@ def render_header(home_action=None):
             font-size: 0.87rem;
         }
 
+        .cb-example-spans {
+            margin: 0.55rem 0 0 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .cb-span-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            line-height: 1.35;
+            color: var(--cb-ink);
+        }
+
+        .cb-span-badge {
+            background: var(--cb-accent-soft);
+            color: var(--cb-ink);
+            padding: 0.08rem 0.55rem;
+            border-radius: 4px;
+            font-size: 0.66rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            flex-shrink: 0;
+        }
+
+        .cb-span-quote {
+            font-style: italic;
+            color: var(--cb-ink);
+        }
+
+        .cb-example-spans-empty {
+            margin-top: 0.55rem;
+            color: var(--cb-muted);
+            font-size: 0.8rem;
+            font-style: italic;
+        }
+
+        /* Mirror Streamlit's widget label styling so span annotation titles
+           visually match other annotation types (selectbox/checkbox/likert). */
+        p.cb-span-widget-label,
+        [data-testid="stMarkdownContainer"] p.cb-span-widget-label {
+            color: #8a837b !important;
+            font-size: 0.78rem !important;
+            font-weight: 400 !important;
+            line-height: 1.2 !important;
+            margin: 0 !important;
+        }
+
+        /* For unlabeled span annotations we mount a disabled text_input just
+           to carry the annotation name + tooltip in Streamlit's native widget
+           style. Hide the actual input body since we only want its label. */
+        div[data-testid="stTextInput"]:has(input[disabled][value=""]) div[data-baseweb="input"],
+        div[data-testid="stTextInput"]:has(input[disabled][value=""]) div[data-baseweb="base-input"] {
+            display: none !important;
+        }
+        div[data-testid="stTextInput"]:has(input[disabled][value=""]) {
+            margin-bottom: 0.4rem !important;
+        }
+
+        .cb-current-spans {
+            margin: 0.35rem 0 1.1rem 1.4rem;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .cb-current-spans .cb-span-row {
+            display: list-item;
+            list-style-type: decimal;
+            padding-left: 0.25rem;
+        }
+
+        .cb-current-spans .cb-span-row .cb-span-badge {
+            margin-right: 0.4rem;
+        }
+
+        .cb-span-preview-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin: 0.15rem 0 0.45rem 0;
+        }
+
+        .cb-span-preview-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 4.5rem;
+            padding: 0.25rem 0.7rem;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
         .cb-disclosure-copy {
             color: var(--cb-ink);
             line-height: 1.42;
@@ -524,10 +643,25 @@ def render_header(home_action=None):
         .stSelectbox [data-testid="stWidgetLabel"] p,
         .stTextArea [data-testid="stWidgetLabel"] p,
         .stSegmentedControl [data-testid="stWidgetLabel"] p,
-        .stButtonGroup [data-testid="stWidgetLabel"] p {
+        .stButtonGroup [data-testid="stWidgetLabel"] p,
+        .stTextInput [data-testid="stWidgetLabel"] p,
+        .stRadio [data-testid="stWidgetLabel"] p {
             color: #8a837b !important;
             font-size: 0.78rem !important;
             font-weight: 400 !important;
+            line-height: 1.2 !important;
+            opacity: 1 !important;
+        }
+
+        /* The carrier text_input used to host span annotation titles is
+           disabled, which Streamlit normally dims to 40% opacity. Override
+           so the label reads at full strength like other widget labels. */
+        .stTextInput [data-testid="stWidgetLabel"][disabled],
+        .stTextInput:has(input[disabled]) [data-testid="stWidgetLabel"] {
+            opacity: 1 !important;
+        }
+        .stTextInput [data-testid="stWidgetLabel"][disabled] p {
+            color: #8a837b !important;
         }
 
         .stButtonGroup [data-testid="stWidgetLabel"],
@@ -836,9 +970,16 @@ def get_annotation_widget_key(index, full_column_name):
 
 
 def is_answered_value(value):
+    if isinstance(value, list):
+        return len(value) > 0
     if isinstance(value, str):
         return value.strip() != ""
-    return pd.notna(value)
+    try:
+        return pd.notna(value)
+    except (TypeError, ValueError):
+        return value is not None
+
+
 
 
 def format_saved_session_timestamp(updated_at):
@@ -927,10 +1068,18 @@ def get_annotation_condition(annotation):
 
 
 def normalize_annotation_response_value(annotation, value):
-    if pd.isna(value):
-        return None
-
     annotation_type = annotation.get("type", "checkbox")
+    if annotation_type == "span":
+        if isinstance(value, list):
+            return value
+        return parse_span_value(value)
+
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        return value
+
     if annotation_type == "checkbox":
         lowered = str(value).strip().lower()
         if lowered in {"1", "true", "yes"}:
@@ -1259,7 +1408,14 @@ def initialize_annotation_state(index, data, sections):
         for annotation in section_content.get("annotations", {}).values():
             full_column_name = get_annotation_column_name(section_content, annotation)
             current_value = data.at[index, full_column_name] if full_column_name in data.columns else None
-            annotations[full_column_name] = None if pd.isna(current_value) else current_value
+            if annotation.get("type") == "span":
+                annotations[full_column_name] = parse_span_value(current_value)
+            else:
+                try:
+                    is_na = pd.isna(current_value)
+                except (TypeError, ValueError):
+                    is_na = current_value is None
+                annotations[full_column_name] = None if is_na else current_value
 
     st.session_state.annotations = annotations
     st.session_state._annotation_cache_key = cache_key
@@ -1601,6 +1757,142 @@ def render_annotation_toolbar(index, data, sections):
                     update_index(index + 2)
 
 
+# Earthy, colour-blind-friendly highlight palette. Derived from the Okabe-Ito
+# qualitative palette (designed for deuteranopia/protanopia/tritanopia) but
+# desaturated and warmed so it sits comfortably alongside the CodeBook
+# accent tones. Eight slots so a section can carry up to eight distinct
+# (annotation × label) combinations before colours repeat.
+SPAN_PALETTE = [
+    "#e8c98a",  # ochre / wheat
+    "#b0c8d6",  # slate blue
+    "#b6cfb4",  # sage
+    "#ecc8b0",  # soft terracotta
+    "#d2cca0",  # olive sand
+    "#c8c4dc",  # lavender stone
+    "#d8b8a8",  # adobe
+    "#c0cccc",  # dusty teal-grey
+]
+
+
+def _inject_span_label_radio_css(label_options, label_colors):
+    """Style the next-rendered ``st.radio`` so each option becomes a
+    colour-matched small-caps badge. Called from both the live annotation
+    page and the codebook editor's example editor so the labelled span
+    pickers look identical in both."""
+    badge_rules = []
+    for idx, lbl in enumerate(label_options, start=1):
+        color = label_colors.get(lbl) if label_colors else None
+        if color:
+            badge_rules.append(
+                'div[data-testid="stRadio"] [role="radiogroup"] '
+                f'> label:nth-child({idx}) {{ background: {color}; }}'
+            )
+    badge_css = "".join(badge_rules)
+    st.markdown(
+        "<style>"
+        'div[data-testid="stRadio"] [role="radiogroup"] {'
+        'display: flex !important;'
+        'flex-wrap: wrap !important;'
+        'gap: 0.4rem !important;'
+        '}'
+        'div[data-testid="stRadio"] [role="radiogroup"] > label > *:not(:last-child) '
+        '{ display: none !important; width: 0 !important; margin: 0 !important; padding: 0 !important; }'
+        'div[data-testid="stRadio"] [role="radiogroup"] > label > *:last-child {'
+        'flex: 1 1 100% !important;'
+        'display: flex !important;'
+        'align-items: center !important;'
+        'justify-content: center !important;'
+        'text-align: center !important;'
+        'margin: 0 !important; padding: 0 !important;'
+        '}'
+        'div[data-testid="stRadio"] [role="radiogroup"] > label {'
+        'display: inline-flex !important;'
+        'align-items: center !important;'
+        'justify-content: center !important;'
+        'padding: 0.25rem 0.7rem !important;'
+        'margin: 0 !important;'
+        'border-radius: 4px;'
+        'min-width: 4.5rem;'
+        'box-sizing: border-box;'
+        'transition: box-shadow 0.1s;'
+        '}'
+        'div[data-testid="stRadio"] [role="radiogroup"] > label p {'
+        'color: var(--cb-ink) !important;'
+        'font-size: 0.7rem !important;'
+        'font-weight: 700 !important;'
+        'letter-spacing: 0.04em !important;'
+        'text-transform: uppercase !important;'
+        'margin: 0 !important;'
+        'text-align: center !important;'
+        'width: 100% !important;'
+        '}'
+        'div[data-testid="stRadio"] [role="radiogroup"] > label:has(input:checked) {'
+        'box-shadow: 0 0 0 2px var(--cb-ink);'
+        '}'
+        + badge_css +
+        "</style>",
+        unsafe_allow_html=True,
+    )
+
+
+def _build_section_span_colors(span_annotations):
+    """Return ``{(annotation_key, label_or_None): hex_color}`` for the section.
+
+    Walks annotations in their schema order; each labeled annotation claims
+    palette colours per ``label_options`` entry, unlabeled annotations claim
+    a single colour. Consistent across renders so the document highlights,
+    the right-panel current-selections badges, and the examples all agree.
+    """
+    palette_cursor = 0
+    colors = {}
+    for ak, ann, _ in span_annotations:
+        label_options = ann.get("label_options", []) or []
+        keys = [(ak, lbl) for lbl in label_options] if label_options else [(ak, None)]
+        for key in keys:
+            if key not in colors:
+                colors[key] = SPAN_PALETTE[palette_cursor % len(SPAN_PALETTE)]
+                palette_cursor += 1
+    return colors
+
+
+def _annotation_label_colors(annotation, ak=None):
+    """Compact ``{label: color}`` for a single annotation, useful when full
+    section context isn't available (e.g. the editor's static preview)."""
+    label_options = annotation.get("label_options", []) or []
+    if not label_options:
+        return {}
+    return {
+        lbl: SPAN_PALETTE[i % len(SPAN_PALETTE)]
+        for i, lbl in enumerate(label_options)
+    }
+
+
+def _get_section_span_annotations(section_content):
+    """Return ordered list of (annotation_key, annotation_dict, full_column_name) for spans in a section."""
+    result = []
+    for annotation_key, annotation in section_content.get("annotations", {}).items():
+        if annotation.get("type") == "span":
+            full_column_name = get_annotation_column_name(section_content, annotation)
+            result.append((annotation_key, annotation, full_column_name))
+    return result
+
+
+def _span_focus_state_key(section_key):
+    return f"_span_focus_{section_key}"
+
+
+def _span_active_label_state_key(section_key, annotation_key):
+    return f"_span_active_label_{section_key}_{annotation_key}"
+
+
+def _span_last_nonce_key(index, section_key):
+    return f"_span_selector_last_nonce_{index}_{section_key}"
+
+
+def _color_for_index(idx):
+    return SPAN_PALETTE[idx % len(SPAN_PALETTE)]
+
+
 _URL_RE = re.compile(r'https?://[^\s<>"]+')
 _URL_TRAILING_PUNCT = ".,;:!?)\"'"
 
@@ -1630,12 +1922,144 @@ def _linkify_and_escape(text):
 
 def render_text_pane(index, data):
     text_column = st.session_state.custom_schema["text_column"]
-    current_text = data.iloc[index][text_column]
-    safe_text = _linkify_and_escape(current_text)
+    current_text = str(data.iloc[index][text_column])
 
-    with st.container(border=True, height=DOCUMENT_PANE_HEIGHT):
-        st.markdown('<div class="cb-pane-label">Document text</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="cb-document">{safe_text}</div>', unsafe_allow_html=True)
+    # Find the active section's span annotations
+    active_section_key = st.session_state.get("active_annotation_section")
+    sections = get_schema_sections(st.session_state.custom_schema)
+    active_section_content = None
+    for section_key, section_content in sections:
+        if section_key == active_section_key:
+            active_section_content = section_content
+            break
+
+    span_annotations = (
+        _get_section_span_annotations(active_section_content) if active_section_content else []
+    )
+
+    # Both branches (no spans / with spans) render inside the same outer
+    # Streamlit container so the document pane looks visually identical
+    # regardless of whether the active section has any span annotations.
+    container = st.container(border=True, height=DOCUMENT_PANE_HEIGHT)
+
+    if not span_annotations:
+        safe_text = _linkify_and_escape(current_text)
+        with container:
+            st.markdown(
+                '<div class="cb-pane-label">Document text</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(f'<div class="cb-document">{safe_text}</div>', unsafe_allow_html=True)
+        return
+
+    # Determine focused annotation
+    focus_state_key = _span_focus_state_key(active_section_key)
+    focused_ann_key = st.session_state.get(focus_state_key)
+    if focused_ann_key not in {ak for ak, _, _ in span_annotations}:
+        focused_ann_key = span_annotations[0][0]
+        st.session_state[focus_state_key] = focused_ann_key
+
+    # Colour map (annotation_key, label_or_None) -> hex. Shared with the
+    # right-panel badges and the example renderer so colours agree.
+    section_colors = _build_section_span_colors(span_annotations)
+
+    flat_spans = []
+    for ak, ann, full_col in span_annotations:
+        ann_label = ann.get("name") or ak
+        raw_value = st.session_state.annotations.get(full_col)
+        parsed = raw_value if isinstance(raw_value, list) else parse_span_value(raw_value)
+        for span_idx, span in enumerate(parsed):
+            label_val = span.get("label")
+            color_key = (ak, label_val) if label_val else (ak, None)
+            flat_spans.append({
+                "annotation_key": ak,
+                "annotation_label": ann_label,
+                "start": int(span.get("start", 0)),
+                "end": int(span.get("end", 0)),
+                "label": label_val,
+                "color": section_colors.get(color_key, SPAN_PALETTE[0]),
+                "focused": ak == focused_ann_key,
+                "index": span_idx,
+            })
+
+    focused_ann = next(ann for ak, ann, _ in span_annotations if ak == focused_ann_key)
+    focused_full_col = next(fc for ak, _, fc in span_annotations if ak == focused_ann_key)
+    focused_label_options = focused_ann.get("label_options", []) or []
+    active_label = None
+    if focused_label_options:
+        # Read the radio's widget key directly so the hint reflects the *current*
+        # selection on the same rerun. The intermediate _span_active_label_*
+        # state key trails by one rerun because it's set after the radio
+        # renders in the right column.
+        label_picker_key = f"{get_annotation_widget_key(index, focused_full_col)}_label_picker"
+        widget_value = st.session_state.get(label_picker_key)
+        if widget_value in focused_label_options:
+            active_label = widget_value
+        else:
+            label_state_key = _span_active_label_state_key(active_section_key, focused_ann_key)
+            seed = st.session_state.get(label_state_key)
+            active_label = seed if seed in focused_label_options else focused_label_options[0]
+
+    with container:
+        # Combine label + drag hint on a single line so the document text
+        # starts at the same vertical position whether or not the section
+        # has span annotations.
+        st.markdown(
+            '<div class="cb-pane-label">Document text '
+            '<span class="cb-pane-label-hint">· Drag to highlight</span></div>',
+            unsafe_allow_html=True,
+        )
+        result = span_selector(
+            text=current_text,
+            spans=flat_spans,
+            hint="",
+            key=f"span_selector_{index}_{active_section_key}",
+        )
+
+    nonce_key = _span_last_nonce_key(index, active_section_key)
+    if result and result.get("nonce") != st.session_state.get(nonce_key):
+        st.session_state[nonce_key] = result.get("nonce")
+        rerun_needed = False
+        if result.get("kind") == "add":
+            full_col = next(fc for ak, _, fc in span_annotations if ak == focused_ann_key)
+            current_value = st.session_state.annotations.get(full_col)
+            current_list = current_value if isinstance(current_value, list) else parse_span_value(current_value)
+            new_span = {
+                "start": int(result["start"]),
+                "end": int(result["end"]),
+                "text": str(result.get("text", "")),
+            }
+            if active_label:
+                new_span["label"] = active_label
+            current_list.append(new_span)
+            st.session_state.annotations[full_col] = current_list
+            queue_auto_save()
+            rerun_needed = True
+        elif result.get("kind") == "remove":
+            target_ann_key = result.get("annotation_key")
+            full_col = next((fc for ak, _, fc in span_annotations if ak == target_ann_key), None)
+            if full_col:
+                current_value = st.session_state.annotations.get(full_col)
+                current_list = current_value if isinstance(current_value, list) else parse_span_value(current_value)
+                target_index = int(result.get("index", -1))
+                if 0 <= target_index < len(current_list):
+                    del current_list[target_index]
+                    st.session_state.annotations[full_col] = current_list
+                    queue_auto_save()
+                    rerun_needed = True
+
+        if rerun_needed:
+            # The right-column widgets (section pill, label radio) have not
+            # rendered yet in this run. Streamlit drops widget state for keys
+            # that don't render before a rerun, so without this re-assertion
+            # the pill defaults back to the first section and the radio resets
+            # to the first label. Re-write the keys to preserve them.
+            st.session_state["active_annotation_section"] = active_section_key
+            for ak, ann, full_col in span_annotations:
+                label_picker_key = f"{get_annotation_widget_key(index, full_col)}_label_picker"
+                if label_picker_key in st.session_state:
+                    st.session_state[label_picker_key] = st.session_state[label_picker_key]
+            st.rerun()
 
 
 def render_likert_selector(label, min_value, max_value, current_value, key, help_text=None, disabled=False):
@@ -1743,6 +2167,32 @@ def render_editor_preview_annotation(annotation, key, condition_summary=""):
         st.selectbox(label, options, index=0, help=tooltip, key=key, disabled=True)
     elif annotation["type"] == "textbox":
         st.text_area(label, help=tooltip, key=key, height=120, disabled=True, placeholder="Free-text response")
+    elif annotation["type"] == "span":
+        # Mirror the live annotation widget look: muted widget-label title +
+        # ? tooltip carried by an invisible text_input, optional colour-matched
+        # label badges, and an empty-state hint.
+        label_options = annotation.get("label_options", []) or []
+        st.text_input(
+            label,
+            value="",
+            key=f"preview_{key}_label_carrier",
+            help=tooltip or None,
+            disabled=True,
+            label_visibility="visible",
+        )
+        if label_options:
+            label_colors = _annotation_label_colors(annotation)
+            badges_html = "".join(
+                '<span class="cb-span-badge cb-span-preview-badge" '
+                f'style="background:{html_module.escape(label_colors.get(lbl, ""))};">'
+                f'{html_module.escape(lbl)}</span>'
+                for lbl in label_options
+            )
+            st.markdown(
+                f'<div class="cb-span-preview-badges">{badges_html}</div>',
+                unsafe_allow_html=True,
+            )
+        st.caption("_No spans yet — drag the document text to highlight._")
 
     if condition_summary:
         st.caption(condition_summary)
@@ -1750,10 +2200,16 @@ def render_editor_preview_annotation(annotation, key, condition_summary=""):
     if annotation.get("example"):
         if annotation["type"] == "textbox":
             st.markdown('<div class="cb-field-spacer"></div>', unsafe_allow_html=True)
+        preview_label_colors = (
+            _annotation_label_colors(annotation) if annotation.get("type") == "span" else None
+        )
         render_persistent_disclosure(
             "Examples",
             f"preview_examples__{key}",
-            lambda: render_example_blocks(annotation["example"], annotation.get("type")),
+            lambda: render_example_blocks(
+                annotation["example"], annotation.get("type"),
+                label_colors=preview_label_colors,
+            ),
         )
 
 
@@ -1764,6 +2220,12 @@ def format_example_response_for_display(response_value, annotation_type):
             return "Yes"
         if lowered in {"0", "false", "no"}:
             return "No"
+    if annotation_type == "span":
+        # Preserve the list shape so the example editor can manipulate spans
+        # interactively rather than rendering a stringified Python list.
+        if isinstance(response_value, list):
+            return response_value
+        return parse_span_value(response_value)
     return "" if response_value is None else str(response_value)
 
 
@@ -1796,9 +2258,13 @@ def render_disclosure_copy(text):
     st.markdown(f'<div class="cb-disclosure-copy">{safe_text}</div>', unsafe_allow_html=True)
 
 
-def render_example_blocks(example_text, annotation_type):
+def render_example_blocks(example_text, annotation_type, label_colors=None):
     example_blocks = parse_example_blocks(example_text, annotation_type)
     if not example_blocks:
+        return
+
+    if annotation_type == "span":
+        _render_span_example_blocks(example_blocks, label_colors=label_colors or {})
         return
 
     rendered_cards = []
@@ -1824,6 +2290,64 @@ def render_example_blocks(example_text, annotation_type):
     )
 
 
+def _render_span_example_blocks(example_blocks, label_colors=None):
+    """Render span-type example blocks: text on top, then a clean list of
+    highlighted phrases (labelled or not), instead of the raw JSON span array.
+    """
+    label_colors = label_colors or {}
+    rendered_cards = []
+    for block in example_blocks:
+        text_value = str(block.get("text", "")).strip()
+        response_value = block.get("response")
+        spans = response_value if isinstance(response_value, list) else parse_span_value(response_value)
+
+        safe_text = html_module.escape(text_value).replace("\n", "<br>")
+
+        span_items = []
+        for span in spans:
+            phrase = (span.get("text") or "").strip()
+            if not phrase:
+                continue
+            quoted = f'&ldquo;{html_module.escape(phrase)}&rdquo;'
+            label = span.get("label")
+            if label:
+                badge = html_module.escape(str(label))
+                badge_color = label_colors.get(label)
+                style_attr = f' style="background:{badge_color};"' if badge_color else ""
+                span_items.append(
+                    f'<li class="cb-span-row">'
+                    f'<span class="cb-span-badge"{style_attr}>{badge}</span>'
+                    f'<span class="cb-span-quote">{quoted}</span>'
+                    f'</li>'
+                )
+            else:
+                span_items.append(
+                    f'<li class="cb-span-row">'
+                    f'<span class="cb-span-quote">{quoted}</span>'
+                    f'</li>'
+                )
+
+        if span_items:
+            spans_html = (
+                f'<ul class="cb-example-spans">{"".join(span_items)}</ul>'
+            )
+        else:
+            spans_html = '<div class="cb-example-spans-empty">(no highlights)</div>'
+
+        rendered_cards.append(
+            '<div class="cb-example-card">'
+            '<div class="cb-example-response">Highlights</div>'
+            f'<div class="cb-example-text">{safe_text}</div>'
+            f'{spans_html}'
+            '</div>'
+        )
+
+    st.markdown(
+        f'<div class="cb-example-list">{"".join(rendered_cards)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def create_empty_annotation(annotation_type="checkbox"):
     annotation = {
         "name": "",
@@ -1837,6 +2361,8 @@ def create_empty_annotation(annotation_type="checkbox"):
         annotation["max_value"] = 5
     elif annotation_type == "dropdown":
         annotation["options"] = []
+    elif annotation_type == "span":
+        annotation["label_options"] = []
 
     return annotation
 
@@ -1859,6 +2385,13 @@ def get_annotation_response_summary(annotation):
     if annotation_type == "dropdown":
         option_count = len(annotation.get("options", []))
         return f"{option_count} option{'s' if option_count != 1 else ''}"
+    if annotation_type == "span":
+        label_options = annotation.get("label_options", []) or []
+        if not label_options:
+            return "Text-span highlights"
+        if len(label_options) <= 3:
+            return f"Labeled spans: {', '.join(label_options)}"
+        return f"Labeled spans: {', '.join(label_options[:3])}, +{len(label_options) - 3}"
     return "Free-text response"
 
 
@@ -2051,6 +2584,91 @@ def _apply_pending_example_delete(section_key, annotation_key, annotation):
     st.session_state.pop(get_example_editor_signature_key(section_key, annotation_key), None)
 
 
+def _render_example_span_editor(section_key, annotation_key, annotation, idx, text_key, response_key):
+    """Replace the free-text response field with a span_selector so the
+    codebook author can highlight phrases on the example text instead of
+    hand-writing JSON span objects."""
+    text = st.session_state.get(text_key, "") or ""
+
+    current_spans = st.session_state.get(response_key)
+    if not isinstance(current_spans, list):
+        current_spans = parse_span_value(current_spans)
+        st.session_state[response_key] = current_spans
+
+    label_options = annotation.get("label_options", []) or []
+    label_colors = _annotation_label_colors(annotation)
+
+    # Active label for new spans (when labeled)
+    active_label = None
+    if label_options:
+        editor_picker_key = f"{section_key}_{annotation_key}_example_{idx}_label_picker"
+        if editor_picker_key not in st.session_state:
+            st.session_state[editor_picker_key] = label_options[0]
+        elif st.session_state[editor_picker_key] not in label_options:
+            st.session_state[editor_picker_key] = label_options[0]
+        _inject_span_label_radio_css(label_options, label_colors)
+        st.radio(
+            f"Span label {idx + 1}",
+            label_options,
+            key=editor_picker_key,
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+        active_label = st.session_state[editor_picker_key]
+
+    # Build span_selector input
+    flat_spans = []
+    for span_idx, span in enumerate(current_spans):
+        label_val = span.get("label")
+        color = (
+            label_colors.get(label_val)
+            if label_val and label_colors
+            else SPAN_PALETTE[0]
+        )
+        flat_spans.append({
+            "annotation_key": annotation_key,
+            "annotation_label": annotation.get("name", ""),
+            "start": int(span.get("start", 0)),
+            "end": int(span.get("end", 0)),
+            "label": label_val,
+            "color": color,
+            "focused": True,
+            "index": span_idx,
+        })
+
+    selector_key = f"example_span_selector_{section_key}_{annotation_key}_{idx}"
+    if not text.strip():
+        st.caption("_Enter example text above, then drag in the highlight area below._")
+
+    result = span_selector(
+        text=text,
+        spans=flat_spans,
+        hint="Drag to highlight",
+        key=selector_key,
+    )
+
+    nonce_key = f"_example_span_nonce_{section_key}_{annotation_key}_{idx}"
+    if result and result.get("nonce") != st.session_state.get(nonce_key):
+        st.session_state[nonce_key] = result.get("nonce")
+        if result.get("kind") == "add":
+            new_span = {
+                "start": int(result["start"]),
+                "end": int(result["end"]),
+                "text": str(result.get("text", "")),
+            }
+            if active_label:
+                new_span["label"] = active_label
+            current_spans.append(new_span)
+            st.session_state[response_key] = current_spans
+            st.rerun()
+        elif result.get("kind") == "remove":
+            remove_idx = int(result.get("index", -1))
+            if 0 <= remove_idx < len(current_spans):
+                del current_spans[remove_idx]
+                st.session_state[response_key] = current_spans
+                st.rerun()
+
+
 def render_example_editor(section_key, annotation_key, annotation):
     _apply_pending_example_delete(section_key, annotation_key, annotation)
     initialize_example_editor_state(section_key, annotation_key, annotation)
@@ -2067,6 +2685,8 @@ def render_example_editor(section_key, annotation_key, annotation):
     if not example_blocks:
         st.caption("No examples yet.")
 
+    annotation_type = annotation.get("type")
+
     for idx, _ in enumerate(example_blocks):
         with st.container(border=True):
             text_key = get_example_text_widget_key(section_key, annotation_key, idx)
@@ -2078,7 +2698,11 @@ def render_example_editor(section_key, annotation_key, annotation):
                 help="A sample text that illustrates this annotation.",
                 height=100,
             )
-            if valid_response_options is None:
+            if annotation_type == "span":
+                _render_example_span_editor(
+                    section_key, annotation_key, annotation, idx, text_key, response_key,
+                )
+            elif valid_response_options is None:
                 st.text_input(
                     f"Expected response {idx + 1}",
                     key=response_key,
@@ -2141,6 +2765,14 @@ def sync_schema_editor_state_from_widgets(schema):
                 annotation["options"] = [
                     option.strip()
                     for option in st.session_state[annotation_options_key].split(",")
+                    if option.strip()
+                ]
+
+            annotation_label_options_key = f"{section_key}_{annotation_key}_label_options"
+            if annotation_label_options_key in st.session_state:
+                annotation["label_options"] = [
+                    option.strip()
+                    for option in st.session_state[annotation_label_options_key].split(",")
                     if option.strip()
                 ]
 
@@ -2360,14 +2992,160 @@ def render_annotation_input(section_content, config, full_column_name, index):
             placeholder="Enter free-text response...",
         )
         st.session_state.annotations[full_column_name] = annotated
+    elif config["type"] == "span":
+        active_section_key = st.session_state.get("active_annotation_section")
+        section_content = next(
+            (sc for sk, sc in get_schema_sections(st.session_state.custom_schema) if sk == active_section_key),
+            None,
+        )
+        section_spans = (
+            _get_section_span_annotations(section_content) if section_content else []
+        )
+        annotation_key_for_widget = next(
+            (ak for ak, ann, _fc in section_spans if ann is config),
+            None,
+        )
+
+        current_list = current_value if isinstance(current_value, list) else parse_span_value(current_value)
+        st.session_state.annotations[full_column_name] = current_list
+
+        # The annotation title + tooltip ride on a Streamlit widget so they
+        # match the look of other annotation types (selectbox/checkbox/likert
+        # use the widget's own label + help). For labeled spans we use the
+        # radio's label below; for unlabeled spans we mount an invisible
+        # carrier widget here just for the label / tooltip styling.
+        has_labels = bool(config.get("label_options"))
+        if not has_labels:
+            st.text_input(
+                config["name"],
+                value="",
+                key=f"{widget_key}_label_carrier",
+                help=config.get("tooltip") or None,
+                disabled=True,
+                label_visibility="visible",
+            )
+
+        if annotation_key_for_widget and len(section_spans) > 1:
+            focus_state_key = _span_focus_state_key(active_section_key)
+            current_focus = st.session_state.get(focus_state_key)
+            is_focused = current_focus == annotation_key_for_widget
+            label = "Selecting into this annotation" if is_focused else "Select into this annotation"
+            if st.button(
+                label,
+                key=f"{widget_key}_focus",
+                use_container_width=True,
+                type="primary" if is_focused else "secondary",
+                disabled=is_focused,
+            ):
+                st.session_state[focus_state_key] = annotation_key_for_widget
+                st.rerun()
+
+        # Build colour map up-front so it's available to both the label
+        # radio and the current-selections list.
+        label_options = config.get("label_options", []) or []
+        section_colors = _build_section_span_colors(section_spans)
+        ann_label_colors = {
+            lbl: section_colors.get((annotation_key_for_widget, lbl))
+            for lbl in label_options
+        }
+
+        if label_options and annotation_key_for_widget and active_section_key:
+            label_state_key = _span_active_label_state_key(active_section_key, annotation_key_for_widget)
+            label_picker_key = f"{widget_key}_label_picker"
+            # Initialise the radio's session_state value exactly once, then let
+            # the widget manage itself via its key. Passing both `index=` and
+            # writing to session_state[key] makes Streamlit warn about a
+            # widget being created with a default *and* having its value set
+            # via the Session State API.
+            if label_picker_key not in st.session_state:
+                seed = st.session_state.get(label_state_key)
+                st.session_state[label_picker_key] = seed if seed in label_options else label_options[0]
+            elif st.session_state[label_picker_key] not in label_options:
+                st.session_state[label_picker_key] = label_options[0]
+
+            _inject_span_label_radio_css(label_options, ann_label_colors)
+            picked = st.radio(
+                config["name"],
+                label_options,
+                key=label_picker_key,
+                horizontal=True,
+                help=config.get("tooltip") or None,
+                label_visibility="visible",
+            )
+            st.session_state[label_state_key] = picked
+
+        if not current_list:
+            st.caption("_No spans yet — drag to highlight text in the document._")
+        else:
+            items = []
+            for span in current_list:
+                phrase = (span.get("text") or "").strip()
+                if not phrase:
+                    continue
+                if len(phrase) > 120:
+                    phrase = phrase[:117] + "…"
+                quoted = f'&ldquo;{html_module.escape(phrase)}&rdquo;'
+                label = span.get("label")
+                if label:
+                    badge = html_module.escape(str(label))
+                    badge_color = ann_label_colors.get(label)
+                    style_attr = f' style="background:{badge_color};"' if badge_color else ""
+                    items.append(
+                        '<li class="cb-span-row">'
+                        f'<span class="cb-span-badge"{style_attr}>{badge}</span>'
+                        f'<span class="cb-span-quote">{quoted}</span>'
+                        '</li>'
+                    )
+                else:
+                    items.append(
+                        '<li class="cb-span-row">'
+                        f'<span class="cb-span-quote">{quoted}</span>'
+                        '</li>'
+                    )
+            if items:
+                st.markdown(
+                    f'<ol class="cb-current-spans">{"".join(items)}</ol>',
+                    unsafe_allow_html=True,
+                )
 
     if config.get("example"):
         if config["type"] == "textbox":
             st.markdown('<div class="cb-field-spacer"></div>', unsafe_allow_html=True)
+
+        # For span annotations, pre-compute the {label: colour} map so the
+        # Example badges match the document highlights and current-selection
+        # badges exactly. Falls back to None for non-span types.
+        example_label_colors = None
+        if config.get("type") == "span":
+            active_section_for_colors = st.session_state.get("active_annotation_section")
+            section_for_colors = next(
+                (sc for sk, sc in get_schema_sections(st.session_state.custom_schema)
+                 if sk == active_section_for_colors),
+                None,
+            )
+            if section_for_colors:
+                section_span_anns = _get_section_span_annotations(section_for_colors)
+                color_map = _build_section_span_colors(section_span_anns)
+                ann_key_for_colors = next(
+                    (ak for ak, ann, _fc in section_span_anns if ann is config),
+                    None,
+                )
+                if ann_key_for_colors:
+                    example_label_colors = {
+                        lbl: color_map.get((ann_key_for_colors, lbl))
+                        for lbl in (config.get("label_options", []) or [])
+                    }
+            if example_label_colors is None:
+                example_label_colors = _annotation_label_colors(config)
+
         render_persistent_disclosure(
             "Examples",
             f"annotation_examples__{full_column_name}",
-            lambda: render_example_blocks(config["example"], config.get("type")),
+            lambda: render_example_blocks(
+                config["example"],
+                config.get("type"),
+                label_colors=example_label_colors,
+            ),
         )
 
 
@@ -2477,6 +3255,12 @@ def data_with_current_annotations(index, data):
     if 0 <= index < len(data_for_status):
         for annotation_option, value in st.session_state.get("annotations", {}).items():
             if annotation_option in data_for_status.columns:
+                # Serialize span lists to their stored JSON form, mirroring
+                # update_data, so the adjudication "answered?" checks see the
+                # same string values they would in the saved CSV (a raw list
+                # cell breaks pandas truthiness checks downstream).
+                if isinstance(value, list):
+                    value = serialize_span_value(value)
                 data_for_status.at[index, annotation_option] = value
     return data_for_status
 
@@ -2630,6 +3414,13 @@ def annotation_page():
     initialize_annotation_state(index, data, sections)
     sync_annotation_state_from_widgets(index, sections)
     clear_inactive_annotation_values(st.session_state.custom_schema, sections, st.session_state.annotations, index)
+
+    # Ensure the active section is set before render_text_pane needs it (the
+    # left/right columns are rendered in parallel and render_text_pane has to
+    # know which section's span annotations to overlay).
+    section_keys = [sk for sk, _ in sections]
+    if section_keys and st.session_state.get("active_annotation_section") not in section_keys:
+        st.session_state.active_annotation_section = section_keys[0]
 
     render_annotation_toolbar(index, data, sections)
     render_adjudication_status(index, data)
@@ -3010,8 +3801,8 @@ def schema_creation_page():
                 )
 
                 st.markdown("##### Add annotation")
-                add_button_columns = st.columns(4, gap="small")
-                add_types = ["checkbox", "dropdown", "likert", "textbox"]
+                add_types = ["checkbox", "dropdown", "likert", "textbox", "span"]
+                add_button_columns = st.columns(len(add_types), gap="small")
                 for column, annotation_type in zip(add_button_columns, add_types):
                     with column:
                         if st.button(
@@ -3112,11 +3903,14 @@ def schema_creation_page():
                                 )
                             with identity_right:
                                 current_type = annotation.get("type", "checkbox")
+                                type_options = ["checkbox", "likert", "dropdown", "textbox", "span"]
+                                if current_type not in type_options:
+                                    current_type = "checkbox"
                                 annotation["type"] = st.selectbox(
                                     "Type",
-                                    ["checkbox", "likert", "dropdown", "textbox"],
+                                    type_options,
                                     key=f"{section_key}_{selected_annotation_key}_type",
-                                    index=["checkbox", "likert", "dropdown", "textbox"].index(current_type),
+                                    index=type_options.index(current_type),
                                 )
 
                             annotation["tooltip"] = st.text_area(
@@ -3155,6 +3949,16 @@ def schema_creation_page():
                                 )
                                 annotation["options"] = [
                                     option.strip() for option in options_str.split(",") if option.strip()
+                                ]
+                            elif annotation["type"] == "span":
+                                label_options_str = st.text_area(
+                                    "Label options (comma-separated, optional)",
+                                    key=f"{section_key}_{selected_annotation_key}_label_options",
+                                    value=",".join(annotation.get("label_options", [])),
+                                    help="Leave empty for simple highlights. Add labels (e.g. 'joy, sadness, anger') to let annotators tag each span with a category.",
+                                )
+                                annotation["label_options"] = [
+                                    option.strip() for option in label_options_str.split(",") if option.strip()
                                 ]
                             else:
                                 st.caption("No additional settings are needed for this response type.")
@@ -3349,8 +4153,10 @@ def schema_creation_page():
 
 
 def update_data(index, data):
-    for annotation_option in st.session_state.annotations:
-        data.at[index, annotation_option] = st.session_state.annotations[annotation_option]
+    for annotation_option, value in st.session_state.annotations.items():
+        if isinstance(value, list):
+            value = serialize_span_value(value)
+        data.at[index, annotation_option] = value
 
 def update_index(new_index):
     st.session_state.index = new_index

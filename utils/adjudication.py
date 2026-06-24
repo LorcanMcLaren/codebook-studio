@@ -84,7 +84,12 @@ def normalize_annotation_response_value(annotation: dict[str, Any], value: Any) 
 def is_answered_value(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip() != ""
-    return pd.notna(value)
+    # Span annotations are list-valued (a list of span dicts); a non-empty
+    # list counts as answered. Guard before pd.notna, which returns an
+    # elementwise array for lists and breaks boolean checks.
+    if isinstance(value, list):
+        return len(value) > 0
+    return bool(pd.notna(value))
 
 
 def is_annotation_active(
