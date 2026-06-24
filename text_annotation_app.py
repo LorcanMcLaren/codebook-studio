@@ -664,6 +664,18 @@ def render_header(home_action=None):
             justify-content: space-between !important;
         }
 
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(5):last-child) > button,
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(6):last-child) > button {
+            flex: 1 1 calc(100% / 3 - 0.5rem) !important;
+            max-width: calc(100% / 3 - 0.5rem) !important;
+        }
+
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(7):last-child) > button,
+        [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(8):last-child) > button {
+            flex: 1 1 calc(100% / 4 - 0.5rem) !important;
+            max-width: calc(100% / 4 - 0.5rem) !important;
+        }
+
         .stTextArea [data-baseweb="textarea"] {
             border: 1px solid var(--cb-border) !important;
             border-radius: 14px !important;
@@ -1174,6 +1186,17 @@ def get_section_condition_notice(schema, section_key, section_content):
         "This section contains conditional questions. It is shown only when one of these conditions is met: "
         + "; ".join(requirements)
         + ".",
+    )
+
+
+def get_annotation_condition_notice(schema, annotation):
+    condition = get_annotation_condition(annotation)
+    if not condition:
+        return None
+    requirement_text = get_condition_requirement_text(schema, condition)
+    return (
+        "Question conditional on an earlier answer",
+        f"This question is shown only when {requirement_text}.",
     )
 
 
@@ -1837,6 +1860,33 @@ def _color_for_index(idx):
     return SPAN_PALETTE[idx % len(SPAN_PALETTE)]
 
 
+_URL_RE = re.compile(r'https?://[^\s<>"]+')
+_URL_TRAILING_PUNCT = ".,;:!?)\"'"
+
+
+def _linkify_and_escape(text):
+    """Escape HTML in text and convert URLs to clickable anchors."""
+    if text is None:
+        return ""
+    text = str(text)
+    if not text:
+        return ""
+    parts = []
+    cursor = 0
+    for match in _URL_RE.finditer(text):
+        url = match.group(0).rstrip(_URL_TRAILING_PUNCT)
+        if not url:
+            continue
+        parts.append(html_module.escape(text[cursor:match.start()]))
+        safe_url = html_module.escape(url, quote=True)
+        parts.append(
+            f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer">{html_module.escape(url)}</a>'
+        )
+        cursor = match.start() + len(url)
+    parts.append(html_module.escape(text[cursor:]))
+    return "".join(parts).replace("\n", "<br>")
+
+
 def render_text_pane(index, data):
     text_column = st.session_state.custom_schema["text_column"]
     current_text = str(data.iloc[index][text_column])
@@ -1860,7 +1910,7 @@ def render_text_pane(index, data):
     container = st.container(border=True, height=DOCUMENT_PANE_HEIGHT)
 
     if not span_annotations:
-        safe_text = html_module.escape(current_text).replace("\n", "<br>")
+        safe_text = _linkify_and_escape(current_text)
         with container:
             st.markdown(
                 '<div class="cb-pane-label">Document text</div>',
@@ -2171,7 +2221,7 @@ def render_persistent_disclosure(label, state_key, render_content, default_open=
 
 
 def render_disclosure_copy(text):
-    safe_text = html_module.escape(str(text)).replace("\n", "<br>")
+    safe_text = _linkify_and_escape(text)
     st.markdown(f'<div class="cb-disclosure-copy">{safe_text}</div>', unsafe_allow_html=True)
 
 
@@ -2191,7 +2241,7 @@ def render_example_blocks(example_text, annotation_type, label_colors=None):
             block.get("response", ""),
             annotation_type,
         ).strip()
-        safe_text = html_module.escape(text_value).replace("\n", "<br>")
+        safe_text = _linkify_and_escape(text_value)
         safe_response = html_module.escape(response_value or "Example")
 
         rendered_cards.append(
@@ -2786,7 +2836,7 @@ def render_schema_workflow_preview(schema, header_column, text_column, metadata_
         with st.container(border=True, height=EDITOR_PREVIEW_TEXT_HEIGHT):
             st.markdown('<div class="cb-preview-pane-marker"></div>', unsafe_allow_html=True)
             st.markdown('<div class="cb-pane-label">Document text</div>', unsafe_allow_html=True)
-            safe_text = html_module.escape(sample_text).replace("\n", "<br>")
+            safe_text = _linkify_and_escape(sample_text)
             st.markdown(f'<div class="cb-document">{safe_text}</div>', unsafe_allow_html=True)
 
     with preview_right:
@@ -3094,13 +3144,26 @@ def render_active_section(index, sections):
         selected_section = active_section
 
     section_content = dict(sections)[selected_section]
-    annotations = get_active_annotations(
-        st.session_state.custom_schema,
-        selected_section,
-        section_content,
-        st.session_state.annotations,
+    lookup = get_annotation_lookup(st.session_state.custom_schema)
+    annotation_status = []
+    for annotation_key in get_sorted_annotation_keys(section_content):
+        annotation = section_content.get("annotations", {}).get(annotation_key, {})
+        is_active = is_annotation_active(
+            st.session_state.custom_schema,
+            selected_section,
+            annotation_key,
+            st.session_state.annotations,
+            lookup=lookup,
+        )
+        annotation_status.append((annotation_key, annotation, is_active))
+
+    annotations = [(key, annotation) for key, annotation, is_active in annotation_status if is_active]
+    has_inactive = any(not is_active for _, _, is_active in annotation_status)
+    checkbox_only = (
+        annotations
+        and not has_inactive
+        and all(annotation["type"] == "checkbox" for _, annotation in annotations)
     )
-    checkbox_only = annotations and all(annotation["type"] == "checkbox" for _, annotation in annotations)
 
     with st.container(border=True, height=ANNOTATION_PANE_HEIGHT):
         st.markdown('<div class="cb-pane-label">Annotation section</div>', unsafe_allow_html=True)
@@ -3110,14 +3173,6 @@ def render_active_section(index, sections):
         )
         completion_placeholder = st.empty()
 
-        section_instruction = section_content.get("section_instruction", "")
-        if section_instruction:
-            render_persistent_disclosure(
-                "Instructions",
-                f"annotation_instructions__{selected_section}",
-                lambda: render_disclosure_copy(section_instruction),
-            )
-
         if not annotations:
             notice_title, notice_body = get_section_condition_notice(
                 st.session_state.custom_schema,
@@ -3125,16 +3180,30 @@ def render_active_section(index, sections):
                 section_content,
             )
             render_conditional_notice(notice_title, notice_body)
-        elif checkbox_only:
-            checkbox_columns = st.columns(2, gap="medium")
-            for idx, (_, config) in enumerate(annotations):
-                full_column_name = get_annotation_column_name(section_content, config)
-                with checkbox_columns[idx % 2]:
-                    render_annotation_input(section_content, config, full_column_name, index)
         else:
-            for _, config in annotations:
-                full_column_name = get_annotation_column_name(section_content, config)
-                render_annotation_input(section_content, config, full_column_name, index)
+            section_instruction = section_content.get("section_instruction", "")
+            if section_instruction:
+                render_persistent_disclosure(
+                    "Instructions",
+                    f"annotation_instructions__{selected_section}",
+                    lambda: render_disclosure_copy(section_instruction),
+                )
+
+            if checkbox_only:
+                checkbox_columns = st.columns(2, gap="medium")
+                for idx, (_, config) in enumerate(annotations):
+                    full_column_name = get_annotation_column_name(section_content, config)
+                    with checkbox_columns[idx % 2]:
+                        render_annotation_input(section_content, config, full_column_name, index)
+            else:
+                for _, config, is_active in annotation_status:
+                    if is_active:
+                        full_column_name = get_annotation_column_name(section_content, config)
+                        render_annotation_input(section_content, config, full_column_name, index)
+                    else:
+                        notice = get_annotation_condition_notice(st.session_state.custom_schema, config)
+                        if notice:
+                            render_conditional_notice(*notice)
 
         completed, total = get_section_completion(
             st.session_state.custom_schema,
@@ -3209,7 +3278,9 @@ def process_data(uploaded_file, text_column):
             for _, annotation_content in section_content["annotations"].items():
                 full_column_name = f"{section_content['section_name']}_{annotation_content['name']}"
                 if full_column_name not in df.columns:
-                    df[full_column_name] = None
+                    df[full_column_name] = pd.Series([None] * len(df), dtype=object, index=df.index)
+                elif df[full_column_name].dtype != object:
+                    df[full_column_name] = df[full_column_name].astype(object).where(df[full_column_name].notna(), None)
 
     return df
 
