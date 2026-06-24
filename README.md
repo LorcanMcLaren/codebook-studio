@@ -39,6 +39,10 @@ The shared codebook structure means the same annotation scheme drives both human
 
 For a step-by-step walkthrough covering both tools, see the [CodeBook Studio & Lab Tutorial](https://lorcanmclaren.com/codebook-tutorial.html).
 
+## Adjudicating Human Disagreements
+
+CodeBook Lab can build an `adjudication_queue.csv` when multiple human coders do not reach a strict majority on every applicable label. Open that CSV in CodeBook Studio with the matching `codebook.json`, choose **Adjudicate disagreements**, complete the unresolved blank cells, and download the adjudication queue again. The completed CSV can then be passed back to CodeBook Lab as `adjudications_csv` when rebuilding final `ground-truth.csv`.
+
 ## Hosted App
 
 For most users, the hosted app at [codebook.streamlit.app](https://codebook.streamlit.app/) is the simplest way to use CodeBook Studio. No local setup is required.

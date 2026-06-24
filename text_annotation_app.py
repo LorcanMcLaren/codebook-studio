@@ -17,6 +17,12 @@ from utils.export import generate_latex_codebook, generate_markdown_codebook
 from utils.html_parser import parse_example_blocks, serialize_example_blocks
 from utils.prompt_preview import render_prompt_preview_page
 from utils import persistence as persistence_utils
+from utils.adjudication import (
+    is_adjudication_filename,
+    next_unresolved_index,
+    unresolved_applicable_cells,
+    unresolved_item_indices,
+)
 from utils.codebook_diff import diff_schemas, group_by_section, field_label
 
 load_state_if_available = persistence_utils.load_state_if_available
@@ -530,6 +536,30 @@ def render_header(home_action=None):
             justify-content: space-between !important;
         }
 
+        .st-key-workflow_mode_selector [data-testid="stWidgetLabel"] p {
+            color: #8a837b !important;
+            font-size: 0.78rem !important;
+            font-weight: 400 !important;
+        }
+
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] {
+            gap: 0.45rem !important;
+        }
+
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button {
+            flex: 1 1 0 !important;
+            border-radius: 999px !important;
+            border-color: var(--cb-border) !important;
+            min-height: 2.25rem !important;
+            padding: 0.35rem 0.75rem !important;
+        }
+
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button p,
+        .st-key-adjudication_next_unresolved button p,
+        .st-key-start_workflow button p {
+            font-size: 0.92rem !important;
+        }
+
         [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(5):last-child) > button,
         [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(6):last-child) > button {
             flex: 1 1 calc(100% / 3 - 0.5rem) !important;
@@ -710,7 +740,8 @@ def render_header(home_action=None):
         .st-key-annotation_prev button,
         .st-key-annotation_next button,
         .st-key-preview_previous button,
-        .st-key-preview_next button {
+        .st-key-preview_next button,
+        .st-key-adjudication_next_unresolved button {
             min-height: 2.4rem !important;
             padding-top: 0.35rem !important;
             padding-bottom: 0.35rem !important;
@@ -1253,6 +1284,7 @@ def reset_working_session():
         "annotations",
         "index",
         "previous_page",
+        "workflow_mode",
         "active_annotation_section",
         "annotation_progress",
         "_next_annotation_progress",
@@ -1298,6 +1330,7 @@ def load_demo_task(demo_key):
     st.session_state.column_names = demo_df.columns.tolist()
     st.session_state.data = demo_df
     st.session_state.index = 1
+    st.session_state.workflow_mode = "annotation"
 
     st.session_state.data = process_data(st.session_state.uploaded_file, schema["text_column"])
     last_annotated_row = find_last_annotated_row(
@@ -2438,6 +2471,54 @@ def render_active_section(index, sections):
             unsafe_allow_html=True,
         )
 
+
+def data_with_current_annotations(index, data):
+    data_for_status = data.copy()
+    if 0 <= index < len(data_for_status):
+        for annotation_option, value in st.session_state.get("annotations", {}).items():
+            if annotation_option in data_for_status.columns:
+                data_for_status.at[index, annotation_option] = value
+    return data_for_status
+
+
+def render_adjudication_status(index, data):
+    if st.session_state.get("workflow_mode") != "adjudication":
+        return
+
+    data_for_status = data_with_current_annotations(index, data)
+    unresolved_cells = unresolved_applicable_cells(st.session_state.custom_schema, data_for_status)
+    unresolved_indices = unresolved_item_indices(st.session_state.custom_schema, data_for_status)
+    current_unresolved = [cell for cell in unresolved_cells if cell["row_index"] == index]
+
+    with st.container(border=True):
+        status_col, action_col = st.columns([0.68, 0.32], gap="medium")
+        with status_col:
+            if unresolved_cells:
+                st.markdown(
+                    f"**Adjudication mode:** {len(unresolved_cells):,} unresolved responses "
+                    f"across {len(unresolved_indices):,} items."
+                )
+                if current_unresolved:
+                    fields = ", ".join(cell["column"] for cell in current_unresolved)
+                    st.caption(f"Current item still needs: {fields}")
+                else:
+                    st.caption("Current item has no unresolved applicable responses.")
+            else:
+                st.success("Adjudication complete. Export this queue and pass it back to CodeBook Lab.")
+
+        with action_col:
+            if st.button(
+                "Next Unresolved",
+                key="adjudication_next_unresolved",
+                use_container_width=True,
+                disabled=not unresolved_cells,
+            ):
+                update_data(index, data)
+                target_index = next_unresolved_index(st.session_state.custom_schema, data, index)
+                if target_index is not None:
+                    update_index(target_index + 1)
+
+
 def render_annotation_utilities(index, data):
     with st.expander("Utilities", expanded=True):
         utility_col1, utility_col2 = st.columns(2, gap="large")
@@ -2464,11 +2545,12 @@ def render_annotation_utilities(index, data):
             csv_data = st.session_state.data.copy()
             update_data(index, csv_data)
             csv = csv_data.to_csv(index=False).encode("utf-8")
+            is_adjudication_mode = st.session_state.get("workflow_mode") == "adjudication"
             st.download_button(
-                label="Download Annotated Data",
+                label="Download Adjudication Queue" if is_adjudication_mode else "Download Annotated Data",
                 key="utility_download_data",
                 data=csv,
-                file_name="ground-truth.csv",
+                file_name="adjudication_queue.csv" if is_adjudication_mode else "ground-truth.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
@@ -2550,6 +2632,7 @@ def annotation_page():
     clear_inactive_annotation_values(st.session_state.custom_schema, sections, st.session_state.annotations, index)
 
     render_annotation_toolbar(index, data, sections)
+    render_adjudication_status(index, data)
     metadata_pairs = _resolve_metadata_pairs(index, data)
     if metadata_pairs:
         render_metadata_strip(metadata_pairs)
@@ -2683,9 +2766,28 @@ def landing_page():
                     else:
                         st.session_state.custom_schema = {}
 
-                    cta_label = "Start Annotating" if st.session_state.custom_schema else "Create CodeBook"
-                    if st.button(cta_label, type="primary", use_container_width=True):
+                    selected_workflow_mode = "annotation"
+                    if st.session_state.custom_schema:
+                        workflow_options = ["annotation", "adjudication"]
+                        suggested_index = 1 if is_adjudication_filename(getattr(uploaded_file, "name", "")) else 0
+                        selected_workflow_mode = st.pills(
+                            "Workflow mode",
+                            workflow_options,
+                            default=workflow_options[suggested_index],
+                            key="workflow_mode_selector",
+                            format_func=lambda mode: "Adjudicate disagreements" if mode == "adjudication" else "Annotate data",
+                            help="Use adjudication mode for Lab adjudication_queue.csv files with prefilled majority labels and blank unresolved cells.",
+                        )
+                        if selected_workflow_mode is None:
+                            selected_workflow_mode = workflow_options[suggested_index]
+
+                    if st.session_state.custom_schema and selected_workflow_mode == "adjudication":
+                        cta_label = "Start Adjudicating"
+                    else:
+                        cta_label = "Start Annotating" if st.session_state.custom_schema else "Create CodeBook"
+                    if st.button(cta_label, key="start_workflow", type="primary", use_container_width=True):
                         if st.session_state.custom_schema:
+                            st.session_state.workflow_mode = selected_workflow_mode
                             st.session_state.data = process_data(
                                 st.session_state.uploaded_file,
                                 st.session_state.custom_schema["text_column"],

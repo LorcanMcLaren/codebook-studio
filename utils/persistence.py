@@ -117,6 +117,7 @@ def restore_session_state(state):
     st.session_state.column_names = state.get("column_names", [])
     st.session_state.annotations_count = state.get("annotations_count", {})
     st.session_state.codebook_versions = state.get("codebook_versions", [])
+    st.session_state.workflow_mode = state.get("workflow_mode", "annotation")
     st.session_state._has_active_save = True
     st.session_state._last_save_hash = _state_hash(state)
 
@@ -222,6 +223,7 @@ def _serialize_state():
         "column_names": st.session_state.get("column_names", []),
         "annotations_count": st.session_state.get("annotations_count", {}),
         "codebook_versions": st.session_state.get("codebook_versions", []),
+        "workflow_mode": st.session_state.get("workflow_mode", "annotation"),
         "page": st.session_state.get("page", "landing"),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
