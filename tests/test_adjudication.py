@@ -4,6 +4,7 @@ import pandas as pd
 
 from utils.adjudication import (
     is_adjudication_filename,
+    is_answered_value,
     next_unresolved_index,
     unresolved_applicable_cells,
     unresolved_item_indices,
@@ -90,6 +91,47 @@ def test_next_unresolved_index_wraps():
     assert next_unresolved_index(codebook(), data, 0) == 1
     assert next_unresolved_index(codebook(), data, 1) == 2
     assert next_unresolved_index(codebook(), data, 2) == 1
+
+
+def test_is_answered_value_handles_span_lists():
+    # Span annotations are list-valued; this must not raise on multi-element
+    # lists (pd.notna would return an array and break the boolean check).
+    assert is_answered_value([{"start": 0, "end": 4}]) is True
+    assert is_answered_value([{"start": 0, "end": 4}, {"start": 5, "end": 9}]) is True
+    assert is_answered_value([]) is False
+
+
+def test_unresolved_cells_with_span_column_do_not_raise():
+    schema = {
+        "header_column": "sample_id",
+        "text_column": "text",
+        "section_1": {
+            "section_name": "1. Spans",
+            "section_instruction": "",
+            "annotations": {
+                "annotation_1": {"name": "evidence", "type": "span", "tooltip": ""}
+            },
+        },
+    }
+    column = "1. Spans_evidence"
+    data = pd.DataFrame(
+        [
+            {"sample_id": "S1", "text": "one", column: [{"start": 0, "end": 3}, {"start": 4, "end": 7}]},
+            {"sample_id": "S2", "text": "two", column: []},
+        ]
+    )
+
+    cells = unresolved_applicable_cells(schema, data)
+
+    # The filled multi-span row is answered; the empty-list row is unresolved.
+    assert cells == [
+        {
+            "row_index": 1,
+            "column": column,
+            "section_key": "section_1",
+            "annotation_key": "annotation_1",
+        }
+    ]
 
 
 def test_adjudication_filename_detection():

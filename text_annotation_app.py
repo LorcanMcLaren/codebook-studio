@@ -3255,6 +3255,12 @@ def data_with_current_annotations(index, data):
     if 0 <= index < len(data_for_status):
         for annotation_option, value in st.session_state.get("annotations", {}).items():
             if annotation_option in data_for_status.columns:
+                # Serialize span lists to their stored JSON form, mirroring
+                # update_data, so the adjudication "answered?" checks see the
+                # same string values they would in the saved CSV (a raw list
+                # cell breaks pandas truthiness checks downstream).
+                if isinstance(value, list):
+                    value = serialize_span_value(value)
                 data_for_status.at[index, annotation_option] = value
     return data_for_status
 
