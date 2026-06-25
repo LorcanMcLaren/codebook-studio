@@ -95,7 +95,7 @@ The repository includes a [`CITATION.cff`](CITATION.cff) file for the software c
 
 APSR style:
 
-McLaren, Lorcan. 2026. *CodeBook Studio* (Version v1.0.0) [Computer software]. Zenodo. [https://doi.org/10.5281/zenodo.19185938](https://doi.org/10.5281/zenodo.19185938).
+McLaren, Lorcan. 2026. *CodeBook Studio* (Version v1.2.1) [Computer software]. Zenodo. [https://doi.org/10.5281/zenodo.19185938](https://doi.org/10.5281/zenodo.19185938).
 
 BibTeX:
 
@@ -104,7 +104,7 @@ BibTeX:
   author = {McLaren, Lorcan},
   title = {CodeBook Studio},
   year = {2026},
-  version = {v1.0.0},
+  version = {v1.2.1},
   doi = {10.5281/zenodo.19185938},
   url = {https://doi.org/10.5281/zenodo.19185938}
 }

@@ -677,15 +677,56 @@ def render_header(home_action=None):
         }
 
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] {
-            gap: 0.45rem !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            width: 100% !important;
+            gap: 0.55rem !important;
         }
 
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button {
-            flex: 1 1 0 !important;
+            width: 100% !important;
+            min-width: 0 !important;
             border-radius: 999px !important;
             border-color: var(--cb-border) !important;
-            min-height: 2.25rem !important;
-            padding: 0.35rem 0.75rem !important;
+            min-height: 2.65rem !important;
+            padding: 0.45rem 0.85rem !important;
+            justify-content: center !important;
+        }
+
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button [data-testid="stMarkdownContainer"] {
+            width: 100% !important;
+        }
+
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button p {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: normal !important;
+            line-height: 1.18 !important;
+            text-align: center !important;
+        }
+
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-checked="true"],
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-pressed="true"],
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-selected="true"] {
+            border-color: #d7c8bd !important;
+            background: var(--cb-accent-soft) !important;
+            color: var(--cb-accent) !important;
+            box-shadow: inset 0 0 0 1px rgba(138, 79, 61, 0.08) !important;
+        }
+
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-checked="true"] p,
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-pressed="true"] p,
+        .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-selected="true"] p {
+            color: var(--cb-accent) !important;
+            font-weight: 600 !important;
+        }
+
+        p.cb-workflow-mode-note,
+        [data-testid="stMarkdownContainer"] p.cb-workflow-mode-note {
+            color: var(--cb-muted);
+            font-size: 0.76rem !important;
+            line-height: 1.35 !important;
+            margin: -0.1rem 0 0.75rem 0;
         }
 
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button p,
@@ -3567,10 +3608,21 @@ def landing_page():
                             default=workflow_options[suggested_index],
                             key="workflow_mode_selector",
                             format_func=lambda mode: "Adjudicate disagreements" if mode == "adjudication" else "Annotate data",
-                            help="Use adjudication mode for Lab adjudication_queue.csv files with prefilled majority labels and blank unresolved cells.",
+                            help="Annotate data for ordinary coding. Adjudicate disagreements for CodeBook Lab adjudication_queue.csv files.",
                         )
                         if selected_workflow_mode is None:
                             selected_workflow_mode = workflow_options[suggested_index]
+                        workflow_note = (
+                            "Use adjudication when opening a CodeBook Lab adjudication queue: "
+                            "majority labels are already filled in, and blank applicable cells are the "
+                            "disagreements to resolve."
+                            if selected_workflow_mode == "adjudication"
+                            else "Use annotation for ordinary coding, review, or continuing a partially completed CSV."
+                        )
+                        st.markdown(
+                            f'<p class="cb-workflow-mode-note">{workflow_note}</p>',
+                            unsafe_allow_html=True,
+                        )
 
                     if st.session_state.custom_schema and selected_workflow_mode == "adjudication":
                         cta_label = "Start Adjudicating"
