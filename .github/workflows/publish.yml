@@ -7,37 +7,63 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to publish, for example v1.2.1"
-        required: true
+        description: "Release tag to publish, for example v1.2.1. Defaults to CITATION.cff."
+        required: false
         type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: publish-release-${{ github.ref_name }}
+  group: publish-release-${{ github.event.inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
     steps:
-      - name: Validate release tag
-        run: |
-          if ! printf '%s' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Release tag must look like v1.2.1; got '$RELEASE_TAG'." >&2
-            exit 1
-          fi
-
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
+
+      - name: Resolve release tag
+        id: release
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            release_tag="${GITHUB_REF_NAME}"
+          elif [ -n "$INPUT_TAG" ]; then
+            release_tag="$INPUT_TAG"
+          else
+            release_tag="$(sed -n 's/^version: "\([^"]*\)"$/\1/p' CITATION.cff | head -n 1)"
+            if [ -z "$release_tag" ]; then
+              echo "CITATION.cff does not contain a quoted version field." >&2
+              exit 1
+            fi
+          fi
+
+          if ! printf '%s' "$release_tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Release tag must look like v1.2.1; got '$release_tag'." >&2
+            exit 1
+          fi
+
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check out existing tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            git fetch origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+            git checkout "$RELEASE_TAG"
+          else
+            echo "Tag $RELEASE_TAG does not exist yet; it will be created from this commit after validation."
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -51,6 +77,8 @@ jobs:
           python -m pip install pytest
 
       - name: Validate citation metadata
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           python - <<'PY'
           import re
@@ -72,9 +100,25 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+      - name: Create release tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
+            echo "Tag $RELEASE_TAG already exists."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$RELEASE_TAG"
+          git push origin "$RELEASE_TAG"
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release $RELEASE_TAG already exists."
@@ -84,4 +128,5 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --title "$RELEASE_TAG" \
             --generate-notes \
-            --verify-tag
+            --verify-tag \
+          || gh release view "$RELEASE_TAG"
