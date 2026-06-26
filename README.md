@@ -4,82 +4,54 @@
 
 [![CodeBook Studio demo](assets/codebook-studio-demo.gif)](https://codebook.streamlit.app/)
 
-CodeBook Studio is a codebook-driven text annotation app for computational social science. Define an annotation task once — with sections, instructions, tooltips, and worked examples — then annotate in the browser and export everything you need for research reporting and LLM benchmarking in [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab).
+CodeBook Studio is a browser-based annotation app for computational social science. It lets researchers define a codebook once, annotate CSV data with human coders, adjudicate disagreements, and export the files needed for research reporting and LLM benchmarking.
 
-The app supports the annotation types researchers most commonly need: binary labels (checkbox), categorical labels (dropdown), ordinal scales (Likert), and open-ended text responses (textbox). It works with any CSV data and does not require fixed column names.
+Studio is the companion app to [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab). Studio defines the task and collects human labels; Lab runs LLM annotation experiments and evaluates model outputs against those labels.
 
-## How It Fits With CodeBook Lab
+## Start Here
 
-CodeBook Studio defines the task. [CodeBook Lab](https://github.com/LorcanMcLaren/codebook-lab) runs and evaluates the experiment.
+- Use the hosted app: [codebook.streamlit.app](https://codebook.streamlit.app/)
+- Read the Studio guide: [lorcanmclaren.com/codebook-lab/studio.html](https://lorcanmclaren.com/codebook-lab/studio.html)
+- Read the Lab documentation: [lorcanmclaren.com/codebook-lab/](https://lorcanmclaren.com/codebook-lab/)
+- Cite the software: [CodeBook citation information](https://lorcanmclaren.com/codebook-lab/citation.html)
 
-<table>
-  <tr>
-    <td align="center"><strong>CodeBook Studio</strong></td>
-    <td align="center"></td>
-    <td align="center"><strong>CodeBook Lab</strong></td>
-  </tr>
-  <tr>
-    <td valign="top">
-      Define the annotation task<br>
-      Annotate texts with humans<br>
-      Export <code>codebook.json</code><br>
-      Save labeled data as <code>ground-truth.csv</code>
-    </td>
-    <td align="center" valign="middle">→</td>
-    <td valign="top">
-      Strip label columns automatically<br>
-      Run LLM annotation experiments<br>
-      Sweep over models, prompts, and hyperparameters<br>
-      Evaluate outputs against human labels
-    </td>
-  </tr>
-</table>
+## What Studio Exports
 
-The shared codebook structure means the same annotation scheme drives both human annotation and LLM prompting, so model outputs can be compared directly against the human labels.
+CodeBook Studio works with CSV input files and supports checkbox, dropdown, Likert, textbox, and span-style annotations. It can export:
 
-For a step-by-step walkthrough covering both tools, see the [CodeBook Studio & Lab Tutorial](https://lorcanmclaren.com/codebook-tutorial.html).
+- `codebook.json` for CodeBook Lab experiments
+- labelled annotation CSVs for human coders
+- completed adjudication queues for unresolved coder disagreements
+- Markdown and LaTeX codebook documentation
 
-## Adjudicating Human Disagreements
+## How Studio And Lab Fit Together
 
-CodeBook Lab can build an `adjudication_queue.csv` when multiple human coders do not reach a strict majority on every applicable label. Open that CSV in CodeBook Studio with the matching `codebook.json`, choose **Adjudicate disagreements**, complete the unresolved blank cells, and download the adjudication queue again. The completed CSV can then be passed back to CodeBook Lab as `adjudications_csv` when rebuilding final `ground-truth.csv`.
+1. Build the annotation task in Studio.
+2. Annotate texts with human coders.
+3. Export `codebook.json` and `ground-truth.csv`.
+4. Run validation and LLM benchmarking in [CodeBook Lab](https://lorcanmclaren.com/codebook-lab/).
 
-## Hosted App
-
-For most users, the hosted app at [codebook.streamlit.app](https://codebook.streamlit.app/) is the simplest way to use CodeBook Studio. No local setup is required.
+For full workflow details, use the [CodeBook Studio guide](https://lorcanmclaren.com/codebook-lab/studio.html).
 
 ## Running Locally
 
-Running locally is useful for greater customization or when data sensitivity means you prefer to keep everything on your own machine.
-
-### 1. Create an environment
+The hosted app is easiest for most users. Run locally when you want to modify the app or keep data on your own machine:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 2. Start the app
-
-```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 streamlit run text_annotation_app.py
 ```
-
-By default, the app will open in your browser at a local Streamlit URL.
 
 ## Repository Layout
 
 - `text_annotation_app.py`: main Streamlit app
-- `utils/prompt_preview.py`: LLM prompt generation and preview logic
-- `utils/export.py`: Markdown and LaTeX codebook export
-- `utils/html_parser.py`: helper logic for parsing and formatting examples
+- `components/`: custom app components
+- `utils/`: export, parsing, and prompt-preview helpers
+- `data/` and `demo_tasks/`: sample files for trying the app locally
 - `requirements.txt`: Python dependencies
-
-## Notes
-
-- The app works with CSV input files.
-- The sample files in `data/` can be used to try out the app before loading your own data.
 
 ## License
 
@@ -87,25 +59,6 @@ This project is licensed under the [GNU Affero General Public License v3.0](LICE
 
 ## Citation
 
-If you use this repository in research, please cite the software repository.
+If you use CodeBook Studio in research, please cite the software repository. Citation metadata is available in [`CITATION.cff`](CITATION.cff) and on the [CodeBook citation page](https://lorcanmclaren.com/codebook-lab/citation.html).
 
-The repository includes a [`CITATION.cff`](CITATION.cff) file for the software citation used by GitHub's citation interface.
-
-### Software Citation
-
-APSR style:
-
-McLaren, Lorcan. 2026. *CodeBook Studio* (Version v1.2.1) [Computer software]. Zenodo. [https://doi.org/10.5281/zenodo.19185938](https://doi.org/10.5281/zenodo.19185938).
-
-BibTeX:
-
-```bibtex
-@software{mclaren_codebook_studio_2026,
-  author = {McLaren, Lorcan},
-  title = {CodeBook Studio},
-  year = {2026},
-  version = {v1.2.1},
-  doi = {10.5281/zenodo.19185938},
-  url = {https://doi.org/10.5281/zenodo.19185938}
-}
-```
+McLaren, Lorcan. 2026. *CodeBook Studio* (Version v1.2.1) [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.19185938>.
