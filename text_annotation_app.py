@@ -4878,6 +4878,16 @@ def version_compare_page():
 
         top_changes, section_buckets = group_by_section(changes)
 
+        def section_heading(section_key, *schemas):
+            """Label a section the way the editor does: 'Section 2 · Direction'."""
+            number = section_key.split("section_")[-1]
+            label = f"Section {number}" if number.isdigit() else section_key
+            for schema in schemas:
+                name = ((schema or {}).get(section_key) or {}).get("section_name")
+                if name:
+                    return f"{label} · {name}"
+            return label
+
         if top_changes:
             with st.container(border=True):
                 st.markdown("##### Header / Text columns")
@@ -4893,7 +4903,7 @@ def version_compare_page():
 
             if section_added:
                 with st.container(border=True):
-                    st.markdown(f"##### {section_key} — :green[Added]")
+                    st.markdown(f"##### {section_heading(section_key, right.get('schema'))} — :green[Added]")
                     st.markdown(f"**Section:** {_section_summary(section_added['section'])}")
                     instruction = section_added["section"].get("section_instruction")
                     if instruction:
@@ -4909,15 +4919,17 @@ def version_compare_page():
 
             if section_removed:
                 with st.container(border=True):
-                    st.markdown(f"##### {section_key} — :red[Removed]")
+                    st.markdown(f"##### {section_heading(section_key, left.get('schema'))} — :red[Removed]")
                     st.markdown(f"**Section:** {_section_summary(section_removed['section'])}")
                     st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
                 continue
 
-            section_label = section_key
+            section_label = section_heading(section_key, right.get("schema"), left.get("schema"))
             for change in bucket_changes:
                 if change["kind"] == "field_changed" and change["scope"] == "section" and change["field"] == "section_name":
-                    section_label = f"{section_key} — {change['old']} → {change['new']}"
+                    number = section_key.split("section_")[-1]
+                    prefix = f"Section {number}" if number.isdigit() else section_key
+                    section_label = f"{prefix} · {change['old']} → {change['new']}"
                     break
 
             with st.container(border=True):
