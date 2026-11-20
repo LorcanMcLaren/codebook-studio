@@ -1095,7 +1095,17 @@ def render_header(home_action=None):
         .cb-diff-badge-added { color: #166534; }
         .cb-diff-badge-removed { color: #7f1d1d; }
         
-</style>
+
+        /* Inline file names in landing copy: ink on a light chip, like the docs */
+        .cb-hero-copy code {
+            color: var(--cb-ink);
+            background: var(--cb-panel-strong);
+            border: 1px solid var(--cb-border);
+            border-radius: 4px;
+            padding: 0.05rem 0.3rem;
+            font-size: 0.85em;
+        }
+        </style>
     """
     st.markdown(global_css, unsafe_allow_html=True)
 
@@ -1658,9 +1668,8 @@ def load_demo_task(demo_key):
 def render_demo_task_section(saved_data):
     st.markdown("#### Try a demo task")
     st.markdown(
-        '<div class="cb-demo-intro">Load a sample dataset and matching CodeBook drawn from familiar '
-        "computational social science and political communication workflows. You can annotate a few texts, inspect "
-        "or edit the CodeBook, and export results before preparing your own materials.</div>",
+        '<div class="cb-demo-intro">Each demo loads six sample texts and a finished codebook. Annotate a '
+        "few texts, open the codebook to see how it is built, or try the exports before using your own data.</div>",
         unsafe_allow_html=True,
     )
 
@@ -1675,7 +1684,7 @@ def render_demo_task_section(saved_data):
                 st.markdown(f"##### {demo['title']}")
                 st.markdown(f'<div class="cb-demo-copy">{demo["description"]}</div>', unsafe_allow_html=True)
                 st.markdown(
-                    f'<div class="cb-demo-meta">{demo["summary"]}<br>{demo["rows"]} sample texts</div>',
+                    f'<div class="cb-demo-meta">{demo["summary"]}</div>',
                     unsafe_allow_html=True,
                 )
                 if st.button("Try this demo", key=f"demo_{demo_key}", use_container_width=True):
@@ -3606,33 +3615,34 @@ def landing_page():
     left_column, right_column = st.columns([0.58, 0.42], gap="large")
 
     with left_column:
-        st.markdown('<div class="cb-kicker">Research-ready text annotation</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="cb-hero-title">Create one codebook, then annotate, export, and reuse it.</div>',
+            '<div class="cb-hero-title">Write a codebook and annotate texts by hand.</div>',
             unsafe_allow_html=True,
         )
         st.markdown(
-            '<div class="cb-hero-copy">CodeBook Studio keeps task design, human annotation, '
-            'LLM prompt inspection, and appendix exports in the same workflow, so annotators and '
-            'researchers spend less time juggling formats.</div>',
+            '<div class="cb-hero-copy">Upload a CSV of texts, set out the questions coders answer, '
+            'and work through the texts in your browser. Download your labels as a CSV and the codebook '
+            'as JSON, Markdown and LaTeX.</div>',
             unsafe_allow_html=True,
         )
 
         step_markup = [
             (
                 "1",
-                "Upload data",
-                "Load a CSV, choose the text column, and optionally bring an existing CodeBook.",
+                "Write the codebook",
+                "Pick the text column, then add sections of questions: checkboxes, dropdowns, Likert "
+                "scales, free text or highlights. Or upload a codebook you already have.",
             ),
             (
                 "2",
-                "Annotate efficiently",
-                "Work through each text in a compact workstation designed to minimize page scrolling.",
+                "Annotate",
+                "Go through the texts one at a time, with instructions and worked examples beside each question.",
             ),
             (
                 "3",
-                "Export once",
-                "Download the annotated CSV and CodeBook outputs for reporting or downstream LLM evaluation.",
+                "Export",
+                "Download your labels as ground-truth.csv, and the codebook as JSON plus Markdown and LaTeX "
+                "for a methods appendix.",
             ),
         ]
         st.markdown(
@@ -3647,16 +3657,18 @@ def landing_page():
         )
 
         st.write("")
-        st.markdown("#### Research workflow")
+        st.markdown("#### Testing language models with CodeBook Lab")
         st.markdown(
-            '<div class="cb-hero-copy">CodeBook Studio is built for computational social science workflows '
-            'that need a consistent annotation scheme across human coding, LLM prompt preview, and research '
-            'reporting. Exported JSON CodeBooks can be used directly in '
-            '<a href="https://github.com/LorcanMcLaren/codebook-lab" target="_blank">CodeBook Lab</a> '
-            'to run and evaluate LLM annotation experiments from the same task definition.<br><br>'
-            'If you use CodeBook Studio in research, please cite the software '
-            'repository: <a href="https://github.com/LorcanMcLaren/codebook-studio" target="_blank">'
-            'github.com/LorcanMcLaren/codebook-studio</a>.</div>',
+            '<div class="cb-hero-copy">The two files you export, <code>codebook.json</code> and '
+            '<code>ground-truth.csv</code>, are a ready-made task for '
+            '<a href="https://lorcanmclaren.com/codebook-lab/" target="_blank">CodeBook Lab</a>, a Python '
+            'package that sends the same codebook to local language models and scores their answers '
+            'against your labels. <strong>Preview LLM Prompts</strong> shows what the models will be asked. '
+            'If several people annotate the same texts, Lab measures their agreement and lists the '
+            'disagreements, which you can then settle here in Studio.<br><br>'
+            '<a href="https://lorcanmclaren.com/codebook-lab/studio.html" target="_blank">Read the Studio guide</a> · '
+            '<a href="https://lorcanmclaren.com/codebook-lab/citation.html" target="_blank">Cite CodeBook Studio</a>'
+            '</div>',
             unsafe_allow_html=True,
         )
 
