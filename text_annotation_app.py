@@ -136,16 +136,19 @@ def render_header(home_action=None):
     # Global CSS — injected once per page render
     global_css = """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap');
 
         :root {
-            --cb-ink: #2f2b28;
-            --cb-muted: #6d665f;
-            --cb-border: #ddd5cd;
-            --cb-panel: #f9f6f1;
-            --cb-panel-strong: #f1ebe2;
-            --cb-accent: #8a4f3d;
-            --cb-accent-soft: #ede1d7;
+            /* Palette shared with lorcanmclaren.com: ink on white, highlighter accents. */
+            --cb-ink: #1d1d1f;
+            --cb-muted: #55555a;
+            --cb-border: #dcdcde;
+            --cb-panel: #ffffff;
+            --cb-panel-strong: #f4f4f5;
+            --cb-accent: #1d1d1f;
+            --cb-accent-soft: rgba(255, 205, 40, 0.45);
+            --cb-highlight: rgba(255, 205, 40, 0.55);
+            --cb-link-underline: rgba(200, 150, 0, 0.85);
         }
 
         /* Body font */
@@ -154,7 +157,7 @@ def render_header(home_action=None):
         .stTextInput label, .stSelectbox label, .stCheckbox label,
         .stSlider label, .stTextArea label, .stFileUploader label,
         .stFileUploader section, .stDownloadButton button {
-            font-family: "Libre Franklin", sans-serif !important;
+            font-family: "Schibsted Grotesk", sans-serif !important;
         }
 
         /* Heading font */
@@ -162,7 +165,7 @@ def render_header(home_action=None):
         [data-testid="stMarkdownContainer"] h1,
         [data-testid="stMarkdownContainer"] h2,
         [data-testid="stMarkdownContainer"] h3 {
-            font-family: "Lora", serif !important;
+            font-family: "Schibsted Grotesk", sans-serif !important;
             color: var(--cb-ink);
         }
 
@@ -174,13 +177,11 @@ def render_header(home_action=None):
         /* Code blocks on prompt preview page */
         .stCodeBlock {
             border: 1px solid var(--cb-border);
-            border-radius: 10px;
+            border-radius: 6px;
         }
 
         .stApp {
-            background:
-                radial-gradient(circle at top left, rgba(233, 219, 204, 0.35), transparent 32%),
-                linear-gradient(180deg, #fcfaf7 0%, #f6f1ea 100%);
+            background: #ffffff;
         }
 
         /* Remove excess top padding from Streamlit's main content area */
@@ -197,20 +198,20 @@ def render_header(home_action=None):
 
         [data-testid="stVerticalBlockBorderWrapper"] {
             border-color: var(--cb-border);
-            border-radius: 16px;
+            border-radius: 6px;
             background: rgba(255, 255, 255, 0.72);
-            box-shadow: 0 10px 30px rgba(72, 53, 34, 0.04);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0);
         }
 
         [data-testid="stMetric"] {
             background: rgba(255, 255, 255, 0.56);
             border: 1px solid var(--cb-border);
-            border-radius: 14px;
+            border-radius: 6px;
             padding: 0.75rem 0.9rem;
         }
 
         .stButton button, .stDownloadButton button {
-            border-radius: 999px;
+            border-radius: 4px;
             border: 1px solid var(--cb-border);
         }
 
@@ -228,7 +229,7 @@ def render_header(home_action=None):
         }
 
         .cb-hero-title {
-            font-family: "Lora", serif;
+            font-family: "Schibsted Grotesk", sans-serif;
             font-size: clamp(2rem, 2.7vw, 3rem);
             line-height: 1.08;
             color: var(--cb-ink);
@@ -249,8 +250,8 @@ def render_header(home_action=None):
         .cb-flow-step {
             padding: 1rem 1rem 0.95rem 1rem;
             border: 1px solid var(--cb-border);
-            border-radius: 16px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(249,246,241,0.92));
+            border-radius: 6px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(244, 244, 245, 0.92));
             min-height: 9.2rem;
         }
 
@@ -273,7 +274,7 @@ def render_header(home_action=None):
             justify-content: center;
             width: 2rem;
             height: 2rem;
-            border-radius: 999px;
+            border-radius: 4px;
             background: var(--cb-accent-soft);
             color: var(--cb-accent);
             font-weight: 700;
@@ -349,7 +350,7 @@ def render_header(home_action=None):
 
         .st-key-header_home button p {
             margin: 0;
-            font-family: "Lora", serif !important;
+            font-family: "Schibsted Grotesk", sans-serif !important;
             font-weight: 700 !important;
             font-size: 2.25rem !important;
             line-height: 1.1 !important;
@@ -384,7 +385,7 @@ def render_header(home_action=None):
         }
 
         .cb-document {
-            font-family: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family: "Literata", Georgia, serif;
             color: var(--cb-ink);
             font-weight: 400;
             line-height: 1.72;
@@ -393,7 +394,7 @@ def render_header(home_action=None):
         }
 
         .cb-footer a {
-            color: #6f4a38 !important;
+            color: #1d1d1f !important;
         }
 
         .cb-footer-divider {
@@ -402,13 +403,13 @@ def render_header(home_action=None):
         }
 
         .cb-footer-credit {
-            color: #857d74;
+            color: #55555a;
             font-size: 0.76rem !important;
             margin: 0;
         }
 
         .cb-footer-credit a {
-            color: #6f4a38;
+            color: #1d1d1f;
         }
 
         .st-key-footer_feedback button {
@@ -446,9 +447,9 @@ def render_header(home_action=None):
         }
 
         .cb-conditional-notice {
-            border: 1px solid rgba(138, 79, 61, 0.18);
-            border-radius: 16px;
-            background: linear-gradient(180deg, rgba(237, 225, 215, 0.72), rgba(249, 246, 241, 0.92));
+            border: 1px solid rgba(29, 29, 31, 0.18);
+            border-radius: 6px;
+            background: linear-gradient(180deg, rgba(255, 205, 40, 0.10), rgba(244, 244, 245, 0.92));
             padding: 0.95rem 1rem;
             margin: 0.2rem 0 0.4rem 0;
         }
@@ -476,16 +477,16 @@ def render_header(home_action=None):
         }
 
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cb-preview-surface-marker) {
-            border-color: rgba(138, 79, 61, 0.22);
+            border-color: rgba(29, 29, 31, 0.22);
             background:
-                radial-gradient(circle at top right, rgba(237, 225, 215, 0.78), transparent 34%),
-                linear-gradient(180deg, rgba(244, 238, 230, 0.96), rgba(250, 247, 242, 0.96));
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 12px 30px rgba(72, 53, 34, 0.05);
+                radial-gradient(circle at top right, rgba(255, 205, 40, 0.10), transparent 34%),
+                linear-gradient(180deg, rgba(244, 244, 245, 0.96), rgba(244, 244, 245, 0.96));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 12px 30px rgba(0, 0, 0, 0);
         }
 
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cb-preview-pane-marker) {
-            border-color: rgba(138, 79, 61, 0.18);
-            background: rgba(255, 252, 247, 0.9);
+            border-color: rgba(29, 29, 31, 0.18);
+            background: rgba(244, 244, 245, 0.9);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
         }
 
@@ -504,9 +505,9 @@ def render_header(home_action=None):
         }
 
         .cb-example-card {
-            border: 1px solid rgba(221, 213, 205, 0.9);
-            border-radius: 12px;
-            background: rgba(249, 246, 241, 0.72);
+            border: 1px solid rgba(244, 244, 245, 0.9);
+            border-radius: 6px;
+            background: rgba(244, 244, 245, 0.72);
             padding: 0.7rem 0.85rem;
         }
 
@@ -514,7 +515,7 @@ def render_header(home_action=None):
             display: inline-flex;
             align-items: center;
             padding: 0.18rem 0.6rem;
-            border-radius: 999px;
+            border-radius: 4px;
             background: var(--cb-accent-soft);
             color: var(--cb-accent);
             font-size: 0.7rem;
@@ -576,7 +577,7 @@ def render_header(home_action=None):
            visually match other annotation types (selectbox/checkbox/likert). */
         p.cb-span-widget-label,
         [data-testid="stMarkdownContainer"] p.cb-span-widget-label {
-            color: #8a837b !important;
+            color: #6b6b70 !important;
             font-size: 0.78rem !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
@@ -646,7 +647,7 @@ def render_header(home_action=None):
         .stButtonGroup [data-testid="stWidgetLabel"] p,
         .stTextInput [data-testid="stWidgetLabel"] p,
         .stRadio [data-testid="stWidgetLabel"] p {
-            color: #8a837b !important;
+            color: #6b6b70 !important;
             font-size: 0.78rem !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
@@ -661,7 +662,7 @@ def render_header(home_action=None):
             opacity: 1 !important;
         }
         .stTextInput [data-testid="stWidgetLabel"][disabled] p {
-            color: #8a837b !important;
+            color: #6b6b70 !important;
         }
 
         .stButtonGroup [data-testid="stWidgetLabel"],
@@ -671,7 +672,7 @@ def render_header(home_action=None):
         }
 
         .st-key-workflow_mode_selector [data-testid="stWidgetLabel"] p {
-            color: #8a837b !important;
+            color: #6b6b70 !important;
             font-size: 0.78rem !important;
             font-weight: 400 !important;
         }
@@ -708,10 +709,10 @@ def render_header(home_action=None):
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-checked="true"],
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-pressed="true"],
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-selected="true"] {
-            border-color: #d7c8bd !important;
+            border-color: #c8c8cc !important;
             background: var(--cb-accent-soft) !important;
             color: var(--cb-accent) !important;
-            box-shadow: inset 0 0 0 1px rgba(138, 79, 61, 0.08) !important;
+            box-shadow: inset 0 0 0 1px rgba(29, 29, 31, 0.08) !important;
         }
 
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button[aria-checked="true"] p,
@@ -750,7 +751,7 @@ def render_header(home_action=None):
         .stTextArea [data-baseweb="textarea"] {
             border: 1px solid var(--cb-border) !important;
             border-radius: 14px !important;
-            background: rgba(249, 246, 241, 0.82) !important;
+            background: rgba(244, 244, 245, 0.82) !important;
         }
 
         .stElementContainer:has(.stTextArea) {
@@ -769,17 +770,17 @@ def render_header(home_action=None):
         }
 
         .stTextArea textarea::placeholder {
-            color: #9a938b !important;
+            color: #6b6b70 !important;
             opacity: 1 !important;
         }
 
         .cb-textbox-preview {
             min-height: 6.8rem;
             border: 1px solid var(--cb-border);
-            border-radius: 14px;
-            background: rgba(249, 246, 241, 0.82);
+            border-radius: 6px;
+            background: rgba(244, 244, 245, 0.82);
             padding: 0.95rem 1rem;
-            color: #9a938b;
+            color: #6b6b70;
             line-height: 1.45;
             font-size: 0.92rem;
         }
@@ -789,7 +790,7 @@ def render_header(home_action=None):
         }
 
         .streamlit-expanderHeader {
-            font-family: "Lora", serif !important;
+            font-family: "Schibsted Grotesk", sans-serif !important;
             font-size: 0.9rem !important;
             font-weight: 600 !important;
             line-height: 1.3 !important;
@@ -802,7 +803,7 @@ def render_header(home_action=None):
         [data-testid="stExpander"] summary > div p,
         [data-testid="stExpander"] summary [data-testid="stMarkdownContainer"] p,
         [data-testid="stExpander"] summary [data-testid="stMarkdownContainer"] span {
-            font-family: "Lora", serif !important;
+            font-family: "Schibsted Grotesk", sans-serif !important;
         }
 
         .streamlit-expanderHeader:hover {
@@ -846,7 +847,7 @@ def render_header(home_action=None):
 
         p.cb-toolbar-progress,
         [data-testid="stMarkdownContainer"] p.cb-toolbar-progress {
-            color: #8a837b;
+            color: #6b6b70;
             font-size: 0.62rem !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
@@ -864,8 +865,8 @@ def render_header(home_action=None):
             display: inline-flex;
             align-items: baseline;
             gap: 6px;
-            background: #f5f3ee;
-            border: 1px solid #e7e5e0;
+            background: #f4f4f5;
+            border: 1px solid #dcdcde;
             border-radius: 6px;
             padding: 4px 10px;
             font-size: 0.82rem;
@@ -873,7 +874,7 @@ def render_header(home_action=None):
         }
 
         .cb-metadata-key {
-            color: #8a837b;
+            color: #6b6b70;
             font-weight: 600;
             font-size: 0.7rem;
             text-transform: uppercase;
@@ -886,7 +887,7 @@ def render_header(home_action=None):
 
         p.cb-secondary-copy,
         [data-testid="stMarkdownContainer"] p.cb-secondary-copy {
-            color: #8a837b;
+            color: #6b6b70;
             font-size: 0.72rem !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
@@ -895,7 +896,7 @@ def render_header(home_action=None):
 
         p.cb-utility-subheading,
         [data-testid="stMarkdownContainer"] p.cb-utility-subheading {
-            font-family: "Lora", serif !important;
+            font-family: "Schibsted Grotesk", sans-serif !important;
             color: var(--cb-ink);
             font-size: 0.88rem !important;
             font-weight: 600 !important;
@@ -951,7 +952,7 @@ def render_header(home_action=None):
 
         p.cb-section-title,
         [data-testid="stMarkdownContainer"] p.cb-section-title {
-            font-family: "Lora", serif !important;
+            font-family: "Schibsted Grotesk", sans-serif !important;
             color: var(--cb-ink);
             font-size: 1.1rem;
             font-weight: 600;
@@ -983,6 +984,22 @@ def render_header(home_action=None):
             display: none !important;
             margin: 0 !important;
             padding: 0 !important;
+        }
+        
+        /* Links: ink with a highlighter-coloured underline, as on lorcanmclaren.com */
+        [data-testid="stMarkdownContainer"] a,
+        [data-testid="stCaptionContainer"] a {
+            color: var(--cb-ink) !important;
+            text-decoration: underline;
+            text-decoration-color: var(--cb-link-underline);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 3px;
+        }
+
+        [data-testid="stMarkdownContainer"] a:hover,
+        [data-testid="stCaptionContainer"] a:hover {
+            background: var(--cb-highlight);
+            text-decoration: none;
         }
         </style>
     """
@@ -1804,14 +1821,14 @@ def render_annotation_toolbar(index, data, sections):
 # accent tones. Eight slots so a section can carry up to eight distinct
 # (annotation × label) combinations before colours repeat.
 SPAN_PALETTE = [
-    "#e8c98a",  # ochre / wheat
-    "#b0c8d6",  # slate blue
-    "#b6cfb4",  # sage
-    "#ecc8b0",  # soft terracotta
-    "#d2cca0",  # olive sand
-    "#c8c4dc",  # lavender stone
-    "#d8b8a8",  # adobe
-    "#c0cccc",  # dusty teal-grey
+    "#ffe27a",  # highlighter yellow
+    "#a9d4ff",  # highlighter blue
+    "#a8e6b5",  # highlighter green
+    "#ffc59e",  # highlighter orange
+    "#d9c4ff",  # highlighter violet
+    "#ffb8d1",  # highlighter pink
+    "#9fe3dc",  # highlighter teal
+    "#d6d6da",  # grey
 ]
 
 
@@ -3687,7 +3704,8 @@ def schema_creation_page():
             "  - **Checkbox** — binary yes/no (e.g. *Is anger present?*)\n"
             "  - **Likert** — a numeric scale with configurable endpoints (e.g. 1–5)\n"
             "  - **Dropdown** — select one option from a predefined list (e.g. *positive / negative*)\n"
-            "  - **Textbox** — free-form text response\n\n"
+            "  - **Textbox** — free-form text response\n"
+            "  - **Span** — highlight passages in the text, optionally with labels\n\n"
             "Start by selecting which columns in your CSV contain the text to annotate and an "
             "optional header/title, then build your sections and annotations below."
         )
@@ -4463,7 +4481,7 @@ def _wrap_diff_block(inner_html, multiline=False):
         return '<div style="color:#6b7280;font-style:italic;">(empty)</div>'
     if multiline:
         return (
-            '<div style="background:#fafaf7;border:1px solid #e7e5e0;border-radius:4px;'
+            '<div style="background:#f4f4f5;border:1px solid #dcdcde;border-radius:4px;'
             'padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
             f'font-size:0.85em;white-space:pre-wrap;">{inner_html}</div>'
         )
@@ -4574,7 +4592,7 @@ def _render_example_block_card(block, kind):
         outer_style = "background:#fee2e2;border:1px solid #fca5a5;"
         badge = '<span style="color:#7f1d1d;font-weight:600;font-size:0.75em;">REMOVED</span><br>'
     else:
-        outer_style = "background:#fafaf7;border:1px solid #e7e5e0;"
+        outer_style = "background:#f4f4f5;border:1px solid #dcdcde;"
         badge = ""
 
     body = (
@@ -4596,7 +4614,7 @@ def _render_example_block_diff(old_block, new_block):
     resp_old, resp_new = _inline_text_diff(resp_old_raw, resp_new_raw)
 
     base_style = (
-        "background:#fafaf7;border:1px solid #e7e5e0;border-radius:4px;padding:8px 10px;"
+        "background:#f4f4f5;border:1px solid #dcdcde;border-radius:4px;padding:8px 10px;"
         "margin-bottom:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"
         "font-size:0.85em;white-space:pre-wrap;"
     )
