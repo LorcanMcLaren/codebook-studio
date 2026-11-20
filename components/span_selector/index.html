@@ -4,23 +4,23 @@
 <meta charset="utf-8" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap">
 <style>
   /* Keep these in sync with the parent app's CSS variables so the document
      text inside the iframe is visually identical to the static document text
      in non-span sections. */
   :root {
-    --cb-ink: #2f2b28;
-    --cb-muted: #8a837b;
-    --cb-paper: #fafaf7;
-    --cb-border: #e7e5e0;
+    --cb-ink: #1d1d1f;
+    --cb-muted: #6b6b70;
+    --cb-paper: #f4f4f5;
+    --cb-border: #dcdcde;
   }
   html, body { margin: 0; padding: 0; background: transparent; }
   body {
     /* Streamlit's text rendering does not set font-smoothing, so we leave it
        at the browser default here too -- otherwise the iframe text reads
        slightly lighter than the main pane on macOS. */
-    font-family: "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Literata", Georgia, serif;
     color: var(--cb-ink);
     font-weight: 400;
   }
@@ -167,10 +167,10 @@
 
       const mark = document.createElement('mark');
       if (covering.length === 1) {
-        mark.style.background = covering[0].color || '#fde68a';
+        mark.style.background = covering[0].color || '#ffe27a';
       } else {
         // Stripe the segment so each overlapping span's colour is visible.
-        const colors = covering.map(c => c.color || '#fde68a');
+        const colors = covering.map(c => c.color || '#ffe27a');
         const step = 100 / colors.length;
         const stops = colors
           .map((c, idx) => `${c} ${(idx * step).toFixed(2)}% ${((idx + 1) * step).toFixed(2)}%`)
