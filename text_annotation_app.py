@@ -149,6 +149,11 @@ def render_header(home_action=None):
             --cb-accent-soft: rgba(255, 205, 40, 0.45);
             --cb-highlight: rgba(255, 205, 40, 0.55);
             --cb-link-underline: rgba(200, 150, 0, 0.85);
+            /* Type scale: four steps for interface text; headings use Streamlit's levels. */
+            --cb-fs-xs: 0.75rem;   /* small-caps labels, badges, footnotes */
+            --cb-fs-sm: 0.85rem;   /* captions, metadata, secondary text */
+            --cb-fs-base: 0.95rem; /* body and help text */
+            --cb-fs-md: 1.05rem;   /* lead paragraphs */
         }
 
         /* Body font */
@@ -221,9 +226,9 @@ def render_header(home_action=None):
 
         .cb-kicker {
             color: var(--cb-accent);
-            font-size: 0.8rem;
+            font-size: var(--cb-fs-sm);
             font-weight: 700;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             margin-bottom: 0.6rem;
         }
@@ -239,7 +244,7 @@ def render_header(home_action=None):
         .cb-hero-copy {
             color: var(--cb-muted);
             line-height: 1.7;
-            font-size: 1.04rem;
+            font-size: var(--cb-fs-md);
             margin-bottom: 1rem;
         }
 
@@ -251,8 +256,7 @@ def render_header(home_action=None):
             padding: 1rem 1rem 0.95rem 1rem;
             border: 1px solid var(--cb-border);
             border-radius: 6px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(244, 244, 245, 0.92));
-            min-height: 9.2rem;
+            background: var(--cb-panel);
         }
 
         .cb-flow-step strong {
@@ -265,7 +269,7 @@ def render_header(home_action=None):
             margin: 0;
             color: var(--cb-muted);
             line-height: 1.55;
-            font-size: 0.95rem;
+            font-size: var(--cb-fs-base);
         }
 
         .cb-flow-number {
@@ -284,19 +288,19 @@ def render_header(home_action=None):
         .cb-subtle-note {
             color: var(--cb-muted);
             line-height: 1.6;
-            font-size: 0.95rem;
+            font-size: var(--cb-fs-base);
         }
 
         .cb-demo-intro {
             color: var(--cb-muted);
             line-height: 1.65;
-            font-size: 0.98rem;
+            font-size: var(--cb-fs-base);
             margin-bottom: 0.9rem;
         }
 
         .cb-demo-context {
             color: var(--cb-accent);
-            font-size: 0.74rem;
+            font-size: var(--cb-fs-xs);
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
@@ -306,14 +310,14 @@ def render_header(home_action=None):
         .cb-demo-copy {
             color: var(--cb-muted);
             line-height: 1.58;
-            font-size: 0.94rem;
+            font-size: var(--cb-fs-base);
             min-height: 4.6rem;
             margin-bottom: 0.65rem;
         }
 
         .cb-demo-meta {
-            color: var(--cb-ink);
-            font-size: 0.8rem;
+            color: var(--cb-muted);
+            font-size: var(--cb-fs-sm);
             line-height: 1.45;
             margin-bottom: 0.9rem;
         }
@@ -322,9 +326,9 @@ def render_header(home_action=None):
             background: var(--cb-accent-soft);
             color: var(--cb-accent);
             padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
+            border-radius: 6px;
             margin-bottom: 0.5rem;
-            font-size: 0.92rem;
+            font-size: var(--cb-fs-base);
         }
 
         .cb-toolbar-title {
@@ -370,8 +374,8 @@ def render_header(home_action=None):
         .cb-pane-label {
             color: var(--cb-muted);
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            font-size: 0.76rem;
+            letter-spacing: 0.06em;
+            font-size: var(--cb-fs-xs);
             font-weight: 700;
             margin-bottom: 0.55rem;
         }
@@ -379,7 +383,7 @@ def render_header(home_action=None):
         .cb-pane-label-hint {
             font-weight: 500;
             text-transform: none;
-            letter-spacing: 0.02em;
+            letter-spacing: 0.06em;
             margin-left: 0.25rem;
             color: var(--cb-muted);
         }
@@ -389,7 +393,7 @@ def render_header(home_action=None):
             color: var(--cb-ink);
             font-weight: 400;
             line-height: 1.72;
-            font-size: 1rem;
+            font-size: var(--cb-fs-md);
             white-space: pre-wrap;
         }
 
@@ -404,7 +408,7 @@ def render_header(home_action=None):
 
         .cb-footer-credit {
             color: #55555a;
-            font-size: 0.76rem !important;
+            font-size: var(--cb-fs-xs) !important;
             margin: 0;
         }
 
@@ -417,7 +421,7 @@ def render_header(home_action=None):
             border: none !important;
             box-shadow: none !important;
             color: var(--cb-accent) !important;
-            font-size: 0.88rem !important;
+            font-size: var(--cb-fs-sm) !important;
             font-weight: 600 !important;
             padding: 0 !important;
         }
@@ -428,7 +432,7 @@ def render_header(home_action=None):
 
         .cb-builder-meta {
             color: var(--cb-accent);
-            font-size: 0.8rem;
+            font-size: var(--cb-fs-sm);
             font-weight: 600;
             margin-bottom: 0.35rem;
         }
@@ -436,7 +440,7 @@ def render_header(home_action=None):
         .cb-builder-summary {
             color: var(--cb-muted);
             line-height: 1.55;
-            font-size: 0.94rem;
+            font-size: var(--cb-fs-base);
             min-height: 2.9rem;
         }
 
@@ -456,9 +460,9 @@ def render_header(home_action=None):
 
         .cb-conditional-notice-title {
             color: var(--cb-accent);
-            font-size: 0.8rem;
+            font-size: var(--cb-fs-sm);
             font-weight: 700;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             margin-bottom: 0.3rem;
         }
@@ -467,7 +471,7 @@ def render_header(home_action=None):
         [data-testid="stMarkdownContainer"] p.cb-conditional-notice-body {
             color: var(--cb-ink);
             line-height: 1.5 !important;
-            font-size: 0.8rem !important;
+            font-size: var(--cb-fs-sm) !important;
             margin: 0;
         }
 
@@ -492,9 +496,9 @@ def render_header(home_action=None):
 
         .cb-preview-kicker {
             color: var(--cb-accent);
-            font-size: 0.75rem;
+            font-size: var(--cb-fs-xs);
             font-weight: 700;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             margin-bottom: 0.35rem;
         }
@@ -518,9 +522,9 @@ def render_header(home_action=None):
             border-radius: 4px;
             background: var(--cb-accent-soft);
             color: var(--cb-accent);
-            font-size: 0.7rem;
+            font-size: var(--cb-fs-xs);
             font-weight: 700;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             margin-bottom: 0.3rem;
         }
@@ -528,7 +532,7 @@ def render_header(home_action=None):
         .cb-example-text {
             color: var(--cb-ink);
             line-height: 1.38;
-            font-size: 0.87rem;
+            font-size: var(--cb-fs-sm);
         }
 
         .cb-example-spans {
@@ -544,7 +548,7 @@ def render_header(home_action=None):
             display: flex;
             align-items: baseline;
             gap: 0.5rem;
-            font-size: 0.85rem;
+            font-size: var(--cb-fs-sm);
             line-height: 1.35;
             color: var(--cb-ink);
         }
@@ -554,10 +558,10 @@ def render_header(home_action=None):
             color: var(--cb-ink);
             padding: 0.08rem 0.55rem;
             border-radius: 4px;
-            font-size: 0.66rem;
+            font-size: var(--cb-fs-xs);
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
             flex-shrink: 0;
         }
 
@@ -569,7 +573,7 @@ def render_header(home_action=None):
         .cb-example-spans-empty {
             margin-top: 0.55rem;
             color: var(--cb-muted);
-            font-size: 0.8rem;
+            font-size: var(--cb-fs-sm);
             font-style: italic;
         }
 
@@ -578,7 +582,7 @@ def render_header(home_action=None):
         p.cb-span-widget-label,
         [data-testid="stMarkdownContainer"] p.cb-span-widget-label {
             color: #6b6b70 !important;
-            font-size: 0.78rem !important;
+            font-size: var(--cb-fs-xs) !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
             margin: 0 !important;
@@ -633,7 +637,7 @@ def render_header(home_action=None):
         .cb-disclosure-copy {
             color: var(--cb-ink);
             line-height: 1.42;
-            font-size: 0.88rem;
+            font-size: var(--cb-fs-sm);
             padding-bottom: 0.5rem;
         }
 
@@ -648,7 +652,7 @@ def render_header(home_action=None):
         .stTextInput [data-testid="stWidgetLabel"] p,
         .stRadio [data-testid="stWidgetLabel"] p {
             color: #6b6b70 !important;
-            font-size: 0.78rem !important;
+            font-size: var(--cb-fs-xs) !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
             opacity: 1 !important;
@@ -673,7 +677,7 @@ def render_header(home_action=None):
 
         .st-key-workflow_mode_selector [data-testid="stWidgetLabel"] p {
             color: #6b6b70 !important;
-            font-size: 0.78rem !important;
+            font-size: var(--cb-fs-xs) !important;
             font-weight: 400 !important;
         }
 
@@ -687,7 +691,7 @@ def render_header(home_action=None):
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button {
             width: 100% !important;
             min-width: 0 !important;
-            border-radius: 999px !important;
+            border-radius: 4px !important;
             border-color: var(--cb-border) !important;
             min-height: 2.65rem !important;
             padding: 0.45rem 0.85rem !important;
@@ -725,7 +729,7 @@ def render_header(home_action=None):
         p.cb-workflow-mode-note,
         [data-testid="stMarkdownContainer"] p.cb-workflow-mode-note {
             color: var(--cb-muted);
-            font-size: 0.76rem !important;
+            font-size: var(--cb-fs-xs) !important;
             line-height: 1.35 !important;
             margin: -0.1rem 0 0.75rem 0;
         }
@@ -733,7 +737,7 @@ def render_header(home_action=None):
         .st-key-workflow_mode_selector [data-testid="stButtonGroup"] [role="radiogroup"] > button p,
         .st-key-adjudication_next_unresolved button p,
         .st-key-start_workflow button p {
-            font-size: 0.92rem !important;
+            font-size: var(--cb-fs-base) !important;
         }
 
         [data-testid="stButtonGroup"] [role="radiogroup"]:has(> button:nth-child(5):last-child) > button,
@@ -750,7 +754,7 @@ def render_header(home_action=None):
 
         .stTextArea [data-baseweb="textarea"] {
             border: 1px solid var(--cb-border) !important;
-            border-radius: 14px !important;
+            border-radius: 6px !important;
             background: rgba(244, 244, 245, 0.82) !important;
         }
 
@@ -782,7 +786,7 @@ def render_header(home_action=None):
             padding: 0.95rem 1rem;
             color: #6b6b70;
             line-height: 1.45;
-            font-size: 0.92rem;
+            font-size: var(--cb-fs-base);
         }
 
         .cb-field-spacer {
@@ -791,7 +795,7 @@ def render_header(home_action=None):
 
         .streamlit-expanderHeader {
             font-family: "Schibsted Grotesk", sans-serif !important;
-            font-size: 0.9rem !important;
+            font-size: var(--cb-fs-base) !important;
             font-weight: 600 !important;
             line-height: 1.3 !important;
             color: var(--cb-ink) !important;
@@ -816,7 +820,7 @@ def render_header(home_action=None):
 
         [data-testid="stExpander"] {
             border: 1px solid var(--cb-border) !important;
-            border-radius: 16px !important;
+            border-radius: 6px !important;
             background: rgba(255, 255, 255, 0.4) !important;
             overflow: hidden;
         }
@@ -835,20 +839,20 @@ def render_header(home_action=None):
 
         .cb-toolbar-inline {
             color: var(--cb-ink);
-            font-size: 1rem;
+            font-size: var(--cb-fs-md);
             line-height: 1.35;
             margin: 0.1rem 0 0 0;
         }
 
         .cb-toolbar-inline-meta {
             color: var(--cb-muted);
-            font-size: 0.82rem;
+            font-size: var(--cb-fs-sm);
         }
 
         p.cb-toolbar-progress,
         [data-testid="stMarkdownContainer"] p.cb-toolbar-progress {
             color: #6b6b70;
-            font-size: 0.62rem !important;
+            font-size: var(--cb-fs-xs) !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
             margin: 0.12rem 0 0.24rem 0;
@@ -869,16 +873,16 @@ def render_header(home_action=None):
             border: 1px solid #dcdcde;
             border-radius: 6px;
             padding: 4px 10px;
-            font-size: 0.82rem;
+            font-size: var(--cb-fs-sm);
             line-height: 1.3;
         }
 
         .cb-metadata-key {
             color: #6b6b70;
             font-weight: 600;
-            font-size: 0.7rem;
+            font-size: var(--cb-fs-xs);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
         }
 
         .cb-metadata-value {
@@ -888,7 +892,7 @@ def render_header(home_action=None):
         p.cb-secondary-copy,
         [data-testid="stMarkdownContainer"] p.cb-secondary-copy {
             color: #6b6b70;
-            font-size: 0.72rem !important;
+            font-size: var(--cb-fs-xs) !important;
             font-weight: 400 !important;
             line-height: 1.2 !important;
             margin: 0.14rem 0 0.38rem 0;
@@ -898,7 +902,7 @@ def render_header(home_action=None):
         [data-testid="stMarkdownContainer"] p.cb-utility-subheading {
             font-family: "Schibsted Grotesk", sans-serif !important;
             color: var(--cb-ink);
-            font-size: 0.88rem !important;
+            font-size: var(--cb-fs-sm) !important;
             font-weight: 600 !important;
             line-height: 1.25 !important;
             margin: 0 0 0.35rem 0;
@@ -910,7 +914,7 @@ def render_header(home_action=None):
         .st-key-utility_prompt_preview button p,
         .st-key-utility_download_data button p,
         .st-key-utility_download_codebook button p {
-            font-size: 0.92rem !important;
+            font-size: var(--cb-fs-base) !important;
         }
 
         .st-key-annotation_prev button,
@@ -925,7 +929,7 @@ def render_header(home_action=None):
 
         .st-key-preview_previous button p,
         .st-key-preview_next button p {
-            font-size: 0.92rem !important;
+            font-size: var(--cb-fs-base) !important;
         }
 
         .st-key-annotation_progress,
@@ -947,7 +951,7 @@ def render_header(home_action=None):
 
         .st-key-annotation_progress [data-baseweb="slider"] *,
         .st-key-preview_progress [data-baseweb="slider"] * {
-            font-size: 0.82rem !important;
+            font-size: var(--cb-fs-sm) !important;
         }
 
         p.cb-section-title,
@@ -1001,7 +1005,97 @@ def render_header(home_action=None):
             background: var(--cb-highlight);
             text-decoration: none;
         }
-        </style>
+        
+        /* Landing: the three steps share one row and one height */
+        .cb-flow-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 760px) {
+            .cb-flow-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Demo cards: equal heights, with the button pinned to the bottom so buttons line up */
+        [data-testid="stColumn"]:has(.cb-demo-context) [data-testid="stVerticalBlock"],
+        [data-testid="stColumn"]:has(.cb-demo-context) [data-testid="stLayoutWrapper"] {
+            height: 100%;
+        }
+
+        [data-testid="stColumn"]:has(.cb-demo-context) [data-testid="stVerticalBlock"]
+            > [data-testid="stElementContainer"]:last-child {
+            margin-top: auto;
+        }
+
+        .cb-demo-copy {
+            min-height: 0;
+        }
+
+        /* Version comparison */
+        .cb-diff-insert {
+            background: #c6f6d5;
+            color: #166534;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .cb-diff-delete {
+            background: #fecaca;
+            color: #7f1d1d;
+            padding: 0 2px;
+            border-radius: 2px;
+            text-decoration: line-through;
+        }
+
+        .cb-diff-empty {
+            color: var(--cb-muted);
+            font-style: italic;
+        }
+
+        .cb-diff-inline {
+            line-height: 1.55;
+        }
+
+        .cb-diff-card {
+            background: var(--cb-panel-strong);
+            border: 1px solid var(--cb-border);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: var(--cb-fs-sm);
+            white-space: pre-wrap;
+        }
+
+        .cb-diff-card-added {
+            background: #dcfce7;
+            border-color: #86efac;
+        }
+
+        .cb-diff-card-removed {
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        .cb-diff-response {
+            margin-top: 6px;
+        }
+
+        .cb-diff-badge {
+            font-family: "Schibsted Grotesk", sans-serif;
+            font-size: var(--cb-fs-xs);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .cb-diff-badge-added { color: #166534; }
+        .cb-diff-badge-removed { color: #7f1d1d; }
+        
+</style>
     """
     st.markdown(global_css, unsafe_allow_html=True)
 
@@ -3524,7 +3618,6 @@ def landing_page():
             unsafe_allow_html=True,
         )
 
-        step_col1, step_col2, step_col3 = st.columns(3, gap="small")
         step_markup = [
             (
                 "1",
@@ -3542,13 +3635,16 @@ def landing_page():
                 "Download the annotated CSV and CodeBook outputs for reporting or downstream LLM evaluation.",
             ),
         ]
-        for column, (number, title, body) in zip((step_col1, step_col2, step_col3), step_markup):
-            with column:
-                st.markdown(
-                    f'<div class="cb-flow-step"><span class="cb-flow-number">{number}</span>'
-                    f'<strong>{title}</strong><p>{body}</p></div>',
-                    unsafe_allow_html=True,
-                )
+        st.markdown(
+            '<div class="cb-flow-grid">'
+            + "".join(
+                f'<div class="cb-flow-step"><span class="cb-flow-number">{number}</span>'
+                f'<strong>{title}</strong><p>{body}</p></div>'
+                for number, title, body in step_markup
+            )
+            + "</div>",
+            unsafe_allow_html=True,
+        )
 
         st.write("")
         st.markdown("#### Research workflow")
@@ -3566,7 +3662,7 @@ def landing_page():
 
     with right_column:
         with st.container(border=True):
-            st.markdown("### Get Started")
+            st.markdown("#### Get Started")
 
             if saved_data:
                 display_time = format_saved_session_timestamp(saved_data.get("updated_at", ""))
@@ -3841,7 +3937,9 @@ def schema_creation_page():
         st.divider()
 
         for section_key, section in get_schema_sections(st.session_state.custom_schema):
-            section_title = f"Section {section_key.split('section_')[-1]}"
+            section_number = section_key.split('section_')[-1]
+            section_display_name = (section.get("section_name") or "").strip()
+            section_title = f"Section {section_number}" + (f" · {section_display_name}" if section_display_name else "")
             annotation_keys = get_sorted_annotation_keys(section)
             editor_state_key = get_annotation_editor_state_key(section_key)
             selected_annotation_key = st.session_state.get(editor_state_key)
@@ -3961,7 +4059,7 @@ def schema_creation_page():
                         annotation = section["annotations"][selected_annotation_key]
                         with st.container(border=True):
                             st.caption("Edits save into the CodeBook immediately.")
-                            st.subheader(annotation.get("name") or "Untitled annotation")
+                            st.markdown(f"#### {annotation.get('name') or 'Untitled annotation'}")
 
                             identity_left, identity_right = st.columns([0.58, 0.42], gap="medium")
                             with identity_left:
@@ -4429,8 +4527,8 @@ def _render_value(value):
     return text
 
 
-DIFF_INSERT_STYLE = "background:#c6f6d5;color:#166534;padding:0 2px;border-radius:2px;"
-DIFF_DELETE_STYLE = "background:#fecaca;color:#7f1d1d;padding:0 2px;border-radius:2px;text-decoration:line-through;"
+DIFF_INSERT_CLASS = "cb-diff-insert"
+DIFF_DELETE_CLASS = "cb-diff-delete"
 
 
 def _tokenize_for_diff(text):
@@ -4438,11 +4536,11 @@ def _tokenize_for_diff(text):
     return re.findall(r"\S+|\s+", text)
 
 
-def _format_diff_chunk(text, style):
+def _format_diff_chunk(text, css_class):
     if not text:
         return ""
     escaped = html_module.escape(text).replace("\n", "<br>")
-    return f'<span style="{style}">{escaped}</span>'
+    return f'<span class="{css_class}">{escaped}</span>'
 
 
 def _plain_chunk(text):
@@ -4466,26 +4564,22 @@ def _inline_text_diff(old, new):
             old_parts.append(_plain_chunk(old_chunk))
             new_parts.append(_plain_chunk(new_chunk))
         elif opcode == "delete":
-            old_parts.append(_format_diff_chunk(old_chunk, DIFF_DELETE_STYLE))
+            old_parts.append(_format_diff_chunk(old_chunk, DIFF_DELETE_CLASS))
         elif opcode == "insert":
-            new_parts.append(_format_diff_chunk(new_chunk, DIFF_INSERT_STYLE))
+            new_parts.append(_format_diff_chunk(new_chunk, DIFF_INSERT_CLASS))
         elif opcode == "replace":
-            old_parts.append(_format_diff_chunk(old_chunk, DIFF_DELETE_STYLE))
-            new_parts.append(_format_diff_chunk(new_chunk, DIFF_INSERT_STYLE))
+            old_parts.append(_format_diff_chunk(old_chunk, DIFF_DELETE_CLASS))
+            new_parts.append(_format_diff_chunk(new_chunk, DIFF_INSERT_CLASS))
 
     return "".join(old_parts), "".join(new_parts)
 
 
 def _wrap_diff_block(inner_html, multiline=False):
     if not inner_html:
-        return '<div style="color:#6b7280;font-style:italic;">(empty)</div>'
+        return '<div class="cb-diff-empty">(empty)</div>'
     if multiline:
-        return (
-            '<div style="background:#f4f4f5;border:1px solid #dcdcde;border-radius:4px;'
-            'padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
-            f'font-size:0.85em;white-space:pre-wrap;">{inner_html}</div>'
-        )
-    return f'<div style="line-height:1.55;">{inner_html}</div>'
+        return f'<div class="cb-diff-card">{inner_html}</div>'
+    return f'<div class="cb-diff-inline">{inner_html}</div>'
 
 
 def _render_inline_text_diff(label, old, new):
@@ -4507,7 +4601,7 @@ def _render_structural_change(label, old, new):
     """Render non-text fields (lists, dicts, numbers) as JSON Before/After."""
     def fmt(value):
         if value is None or value == "":
-            return '<div style="color:#6b7280;font-style:italic;">(empty)</div>'
+            return '<div class="cb-diff-empty">(empty)</div>'
         if isinstance(value, (list, dict)):
             text = json.dumps(value, indent=2, ensure_ascii=False)
         else:
@@ -4541,21 +4635,21 @@ def _render_list_diff(label, old, new):
         elif opcode == "delete":
             for item in old_list[i1:i2]:
                 old_lines.append(
-                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_DELETE_STYLE)}</div>'
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_DELETE_CLASS)}</div>'
                 )
         elif opcode == "insert":
             for item in new_list[j1:j2]:
                 new_lines.append(
-                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_INSERT_STYLE)}</div>'
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_INSERT_CLASS)}</div>'
                 )
         elif opcode == "replace":
             for item in old_list[i1:i2]:
                 old_lines.append(
-                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_DELETE_STYLE)}</div>'
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_DELETE_CLASS)}</div>'
                 )
             for item in new_list[j1:j2]:
                 new_lines.append(
-                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_INSERT_STYLE)}</div>'
+                    f'<div>{_format_diff_chunk("• " + str(item), DIFF_INSERT_CLASS)}</div>'
                 )
 
     st.markdown(f"**{label}**")
@@ -4586,24 +4680,20 @@ def _render_example_block_card(block, kind):
     response_str = "" if response is None else str(response)
 
     if kind == "added":
-        outer_style = "background:#dcfce7;border:1px solid #86efac;"
-        badge = '<span style="color:#166534;font-weight:600;font-size:0.75em;">ADDED</span><br>'
+        card_class = "cb-diff-card cb-diff-card-added"
+        badge = '<span class="cb-diff-badge cb-diff-badge-added">Added</span><br>'
     elif kind == "removed":
-        outer_style = "background:#fee2e2;border:1px solid #fca5a5;"
-        badge = '<span style="color:#7f1d1d;font-weight:600;font-size:0.75em;">REMOVED</span><br>'
+        card_class = "cb-diff-card cb-diff-card-removed"
+        badge = '<span class="cb-diff-badge cb-diff-badge-removed">Removed</span><br>'
     else:
-        outer_style = "background:#f4f4f5;border:1px solid #dcdcde;"
+        card_class = "cb-diff-card"
         badge = ""
 
     body = (
         f"<div><strong>Text:</strong><br>{_plain_chunk(text) or '<em>(empty)</em>'}</div>"
-        f'<div style="margin-top:6px;"><strong>Response:</strong> {_plain_chunk(response_str) or "<em>(empty)</em>"}</div>'
+        f'<div class="cb-diff-response"><strong>Response:</strong> {_plain_chunk(response_str) or "<em>(empty)</em>"}</div>'
     )
-    return (
-        f'<div style="{outer_style}border-radius:4px;padding:8px 10px;margin-bottom:8px;'
-        'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.85em;'
-        f'white-space:pre-wrap;">{badge}{body}</div>'
-    )
+    return f'<div class="{card_class}">{badge}{body}</div>'
 
 
 def _render_example_block_diff(old_block, new_block):
@@ -4613,17 +4703,11 @@ def _render_example_block_diff(old_block, new_block):
     resp_new_raw = "" if new_block.get("response") is None else str(new_block.get("response"))
     resp_old, resp_new = _inline_text_diff(resp_old_raw, resp_new_raw)
 
-    base_style = (
-        "background:#f4f4f5;border:1px solid #dcdcde;border-radius:4px;padding:8px 10px;"
-        "margin-bottom:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"
-        "font-size:0.85em;white-space:pre-wrap;"
-    )
-
     def card(text_html, resp_html):
         return (
-            f'<div style="{base_style}">'
+            '<div class="cb-diff-card">'
             f"<div><strong>Text:</strong><br>{text_html or '<em>(empty)</em>'}</div>"
-            f'<div style="margin-top:6px;"><strong>Response:</strong> {resp_html or "<em>(empty)</em>"}</div>'
+            f'<div class="cb-diff-response"><strong>Response:</strong> {resp_html or "<em>(empty)</em>"}</div>'
             "</div>"
         )
 
